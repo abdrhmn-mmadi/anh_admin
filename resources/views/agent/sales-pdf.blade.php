@@ -3,51 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <title>{{ strtoupper($type) }}</title>
+
     <style>
+        @page {
+            margin: 0;
+        }
+
         body {
             font-family: DejaVu Sans, sans-serif;
             font-size: 12px;
             color: #000;
             margin: 0;
-            padding: 0;
+            padding: 20px;
         }
 
-        header, footer {
-            width: 100%;
-            text-align: center;
-            position: fixed;
-        }
-
+        /* ================= HEADER ================= */
         header {
+            position: fixed;
             top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .header-image {
+            width: 100%;
+            height: 160px; /* adjust if needed */
+            object-fit: cover;
+            display: block;
+        }
+
+        .header-text {
+            text-align: center;
             padding: 10px 0;
         }
 
+        /* ================= FOOTER ================= */
         footer {
+            position: fixed;
             bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
             font-size: 10px;
             color: #555;
             border-top: 1px solid #ccc;
-            padding: 5px 0;
+            padding: 6px 0;
         }
 
-        .logo {
-            float: left;
-            width: 120px;
-            height: auto;
-        }
-
-        .company-info {
-            float: right;
-            text-align: right;
-        }
-
-        .clearfix {
-            clear: both;
-        }
-
+        /* ================= CONTENT ================= */
         .content {
-            margin: 140px 20px 100px 20px; /* top, sides, bottom for header/footer */
+            margin: 230px 20px 100px 20px;
         }
 
         /* Customer Card */
@@ -93,33 +100,40 @@
         }
     </style>
 </head>
+
 <body>
 
+<!-- ================= HEADER ================= -->
 <header>
-    <img src="{{ public_path('images/logo.png') }}" class="logo" alt="Logo">
-    <div class="company-info">
-        <h2>{{ strtoupper($type) }}</h2>
-        <p>Date : {{ now()->format('d/m/Y') }}</p>
+    <img src="{{ public_path('photos/entete.png') }}" class="header-image" alt="Header Image">
+
+    <div class="header-text">
+        <h2>{{ strtoupper($type) }}</h2> 
     </div>
-    <div class="clearfix"></div>
 </header>
 
+<!-- ================= FOOTER ================= -->
 <footer>
-    <p>Document généré par le système de gestion | {{ strtoupper($type) }}</p>
+    <p>Document généré par le système de gestion</p>
+    <i>Document généré par le système de gestion</i>
 </footer>
 
+<!-- ================= CONTENT ================= -->
 <div class="content">
 
-    <!-- Customer Info Card -->
+    <!-- Customer Info -->
     <div class="customer-card">
         <strong>Client :</strong>
         <p>Nom : {{ $customer->customer_name ?? 'Nom client manquant' }}</p>
+
         @if(!empty($customer->customer_email))
             <p>Email : {{ $customer->customer_email }}</p>
         @endif
+
         @if(!empty($customer->customer_phone))
             <p>Téléphone : {{ $customer->customer_phone }}</p>
         @endif
+
         @if(!empty($customer->customer_address))
             <p>Adresse : {{ $customer->customer_address }}</p>
         @endif
@@ -153,13 +167,16 @@
 
     <!-- Agent Info -->
     <div class="agent-info">
-        <p>Agent : <strong>{{ $agent->name }}</strong></p><br>
+        <p>Agent : <strong>{{ $agent->name }}</strong></p><br><br>
         <p>Signature : ____________________</p>
         <p>Date : {{ now()->format('d/m/Y') }}</p>
     </div>
 
     @if($type === 'proforma')
-        <p style="margin-top:20px;"><em>Document sans valeur comptable (Proforma).</em></p>
+        <p style="margin-top:20px;">
+            <em>Document sans valeur comptable (Proforma).</em>
+
+        </p>
     @endif
 
 </div>
