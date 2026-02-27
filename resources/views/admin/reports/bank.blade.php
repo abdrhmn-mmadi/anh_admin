@@ -31,17 +31,18 @@
             object-fit: cover;
         }
 
-        footer {
+         footer {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 40px;
             text-align: center;
             font-size: 10px;
             color: #555;
             border-top: 1px solid #ccc;
-            line-height: 20px;
+            padding: 6px 0;
+            color: #008000;
+            margin-bottom: -90px;
         }
 
         .content {
@@ -104,7 +105,8 @@
 </header>
 
 <footer>
-    <p>Document généré par le système de gestion</p>
+   <i>Rue de la COI, Coulée-Yéménia, Moroni, Union des Comores. Tél : +269 733 25 82.</i><br>
+   <i>E-mail : contact@anh.km. Site web : https://anh.km</i>
 </footer>
 
 <div class="content">
@@ -114,7 +116,7 @@
                 <th>#</th>
                 <th>Nom</th>
                 <th>NIN</th>
-                <th>Banque / Compte</th>
+                <th>Numéro de compte</th>
                 <th>Net à Payer (KMF)</th>
             </tr>
         </thead>

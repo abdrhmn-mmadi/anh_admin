@@ -4,13 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-
-// Models
 use App\Models\User;
 use App\Models\Employee;
 use App\Models\ProductType;
 use App\Models\ProductStock;
 use App\Models\Sale;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -22,7 +21,7 @@ class DashboardController extends Controller
         $totalUsers     = User::count();
         $totalEmployees = Employee::count();
         $totalProducts  = ProductType::count();
-        $totalSales     = Sale::count();
+        $totalSales     = Sale::count(); // number of invoices
 
         /* =========================
            PRODUCTS BY TYPE
@@ -40,8 +39,13 @@ class DashboardController extends Controller
             ->groupBy('product_types.name')
             ->get();
 
-        $productsByTypeLabels = $productsByType->pluck('name');
-        $productsByTypeData   = $productsByType->pluck('total');
+        $productsByTypeLabels = $productsByType->pluck('name')->toArray();
+        $productsByTypeData   = $productsByType->pluck('total')->map(fn ($v) => (int) $v)->toArray();
+
+        if (empty($productsByTypeLabels)) {
+            $productsByTypeLabels = ['No Data'];
+            $productsByTypeData   = [0];
+        }
 
         /* =========================
            PRODUCTS BY REGION
@@ -59,50 +63,74 @@ class DashboardController extends Controller
             ->groupBy('regions.name')
             ->get();
 
-        $productsByRegionLabels = $productsByRegion->pluck('name');
-        $productsByRegionData   = $productsByRegion->pluck('total');
+        $productsByRegionLabels = $productsByRegion->pluck('name')->toArray();
+        $productsByRegionData   = $productsByRegion->pluck('total')->map(fn ($v) => (int) $v)->toArray();
 
-        /* =========================
-           MONTHLY SALES & REVENUE
-        ========================= */
-        $monthlySales = Sale::select(
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('SUM(quantity) as total_quantity'),
-                DB::raw('SUM(total_price) as total_amount')
-            )
-            ->whereYear('created_at', now()->year)
-            ->groupBy(DB::raw('MONTH(created_at)'))
-            ->orderBy('month')
-            ->get();
-
-        // Prepare fixed 12 months
-        $monthlySalesLabels = [];
-        $monthlySalesData   = [];
-        $monthlySalesAmount = [];
-
-        for ($m = 1; $m <= 12; $m++) {
-            $data = $monthlySales->firstWhere('month', $m);
-
-            $monthlySalesLabels[] = now()->setMonth($m)->format('M');
-            $monthlySalesData[]   = $data->total_quantity ?? 0;
-            $monthlySalesAmount[] = $data->total_amount ?? 0;
+        if (empty($productsByRegionLabels)) {
+            $productsByRegionLabels = ['No Data'];
+            $productsByRegionData   = [0];
         }
 
-        return view('admin.welcome', compact(
-            'totalUsers',
-            'totalEmployees',
-            'totalProducts',
-            'totalSales',
+        /* =========================
+           LAST 12 MONTHS (ROLLING)
+           Example: Mar 2025 → Feb 2026
+        ========================= */
+        $start = Carbon::now()->subMonths(11)->startOfMonth();
+        $end   = Carbon::now()->endOfMonth();
 
-            'productsByTypeLabels',
-            'productsByTypeData',
+        $months = [];
+        $cursor = $start->copy();
 
-            'productsByRegionLabels',
-            'productsByRegionData',
+        while ($cursor <= $end) {
+            $months[] = $cursor->format('Y-m');
+            $cursor->addMonth();
+        }
 
-            'monthlySalesLabels',
-            'monthlySalesData',
-            'monthlySalesAmount'
-        ));
+        /* =========================
+           SALES + REVENUE AGGREGATION
+        ========================= */
+        $salesRaw = Sale::selectRaw("
+                DATE_FORMAT(created_at, '%Y-%m') as month,
+                COUNT(id) as total_sales,
+                SUM(grand_total) as total_revenue
+            ")
+            ->whereBetween('created_at', [$start, $end])
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get()
+            ->keyBy('month');
+
+        $monthlySalesData   = [];
+        $monthlyRevenueData = [];
+        $monthLabels        = [];
+
+        foreach ($months as $month) {
+            $monthLabels[] = Carbon::createFromFormat('Y-m', $month)->format('M Y');
+
+            $monthlySalesData[]   = isset($salesRaw[$month])
+                ? (int) $salesRaw[$month]->total_sales
+                : 0;
+
+            $monthlyRevenueData[] = isset($salesRaw[$month])
+                ? round((float) $salesRaw[$month]->total_revenue, 2)
+                : 0;
+        }
+
+        /* =========================
+           RETURN VIEW
+        ========================= */
+        return view('admin.welcome', [
+            'totalUsers'               => $totalUsers,
+            'totalEmployees'           => $totalEmployees,
+            'totalProducts'            => $totalProducts,
+            'totalSales'               => $totalSales,
+            'productsByTypeLabels'     => $productsByTypeLabels,
+            'productsByTypeData'       => $productsByTypeData,
+            'productsByRegionLabels'   => $productsByRegionLabels,
+            'productsByRegionData'     => $productsByRegionData,
+            'months'                   => $monthLabels,
+            'monthlySalesData'         => $monthlySalesData,
+            'monthlyRevenueData'       => $monthlyRevenueData,
+        ]);
     }
 }

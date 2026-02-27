@@ -12,13 +12,14 @@ class Employee extends Model
     protected $fillable = [
         'first_name',
         'last_name',
+        'sex', // added
         'dob',
         'address',
         'email',
         'phone',
         'salary',
         'account_number',
-        'nin', // Added NIN
+        'nin',
         'bank_id',
         'region_id',
         'department_id',
@@ -27,6 +28,7 @@ class Employee extends Model
         'contract_type',
         'date_recruited',
     ];
+
 
     /* =====================
        Relationships

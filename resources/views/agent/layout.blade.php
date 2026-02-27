@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Agent Dashboard')</title>
 
+    <!-- Favicon (PNG) -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('images/favicon.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ asset('images/favicon.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/favicon.png') }}">
+
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -22,8 +27,8 @@
 
         <!-- Logo -->
         <div class="p-6 flex items-center gap-3 border-b border-green-500">
-            <div class="w-11 h-11 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-xl">
-                A
+            <div class="w-11 h-11 rounded-full overflow-hidden">
+                <img src="{{ asset('images/logo.png') }}" alt="Company Logo" class="w-full h-full object-cover">
             </div>
             <span class="text-xl font-bold tracking-wide">Agent Panel</span>
         </div>
@@ -78,8 +83,9 @@
 
         <!-- Logged User -->
         <div class="p-4 border-t border-green-500 flex items-center gap-3">
-            <div class="w-10 h-10 bg-white text-green-600 rounded-full flex items-center justify-center font-bold">
-                {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
+            <div class="w-10 h-10 rounded-full overflow-hidden">
+                <img src="{{ Auth::user()->profile_photo_url ?? asset('images/favicon.png') }}" 
+                     alt="User Avatar" class="w-full h-full object-cover">
             </div>
             <div class="text-sm">
                 <p class="font-semibold">{{ Auth::user()->name }}</p>
@@ -121,7 +127,7 @@
         </footer>
     </div>
 
-    <!-- Page specific scripts (VERY IMPORTANT) -->
+    <!-- Page specific scripts -->
     @yield('scripts')
 
 </body>

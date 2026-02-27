@@ -3,35 +3,22 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\ProductType;
-use App\Models\User;
 
 class Sale extends Model
 {
     protected $fillable = [
         'user_id',
-        'product_id',
-        'quantity',
-        'unit_price',
-        'total_price',
         'customer_name',
         'customer_email',
         'customer_phone',
         'customer_address',
+        'invoice_type',
+        'grand_total',
     ];
 
-    protected $casts = [
-        'unit_price'  => 'decimal:2',
-        'total_price' => 'decimal:2',
-    ];
-
-    /* =====================
-       RELATIONSHIPS
-    ====================== */
-
-    public function product()
+    public function items()
     {
-        return $this->belongsTo(ProductType::class);
+        return $this->hasMany(SaleItem::class);
     }
 
     public function agent()

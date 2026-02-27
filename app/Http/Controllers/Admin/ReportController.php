@@ -7,28 +7,58 @@ use Illuminate\Http\Request;
 use App\Models\Employee;
 use App\Models\Payment;
 use App\Models\Bank;
+use App\Models\Depense;
 use PDF;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\CompletePaymentsExport;
+use Carbon\Carbon;
+
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
     /**
      * Reports dashboard
-     */
-    public function index()
-    {
-        $employees = Employee::with('bank')->get();
-        $banks = Bank::all();
+         */
+public function index()
+{
+    $employees = Employee::with('bank')->get();
+    $banks = Bank::all();
 
-        $months = [
-            '01' => 'Janvier','02' => 'Février','03' => 'Mars','04' => 'Avril',
-            '05' => 'Mai','06' => 'Juin','07' => 'Juillet','08' => 'Août',
-            '09' => 'Septembre','10' => 'Octobre','11' => 'Novembre','12' => 'Décembre',
-        ];
+    // Get distinct months from payments (YYYY-MM)
+    $availableMonths = Payment::select('month')
+        ->whereNotNull('month')
+        ->where('month', '!=', '')
+        ->distinct()
+        ->orderByDesc('month')
+        ->pluck('month')
+        ->filter()
+        ->values();
 
-        return view('admin.reports', compact('employees', 'banks', 'months'));
+    $months = [];
+    foreach ($availableMonths as $ym) {
+        try {
+            $months[$ym] = ucfirst(
+                Carbon::createFromFormat('Y-m', $ym)
+                    ->locale('fr')
+                    ->translatedFormat('F Y')
+            );
+        } catch (\Exception $e) {
+            // skip invalid formats
+        }
     }
+
+    // If no months in DB, fallback to current month
+    if (empty($months)) {
+        $currentMonth = Carbon::now()->format('Y-m');
+        $months[$currentMonth] = ucfirst(
+            Carbon::now()->locale('fr')->translatedFormat('F Y')
+        );
+    }
+
+    return view('admin.reports', compact('employees', 'banks', 'months'));
+}
+
 
     /**
      * Generate employee payslip
@@ -132,7 +162,7 @@ class ReportController extends Controller
     /**
      * Generate complete payment list (Excel)
      */
-   public function completeExcel(Request $request)
+    public function completeExcel(Request $request)
     {
         $request->validate([
             'month' => 'required|date_format:Y-m',
@@ -144,4 +174,34 @@ class ReportController extends Controller
         );
     }
 
+    /**
+     * Generate expenses PDF by month
+     */
+    public function expense(Request $request)
+    {
+        $request->validate([
+            'month' => 'required|date_format:Y-m',
+        ]);
+
+        $date = Carbon::createFromFormat('Y-m', $request->month);
+
+        $depenses = Depense::whereYear('created_at', $date->year)
+            ->whereMonth('created_at', $date->month)
+            ->orderBy('created_at')
+            ->get();
+
+        $totalAmount = $depenses->sum('amount');
+
+        $monthLabel = ucfirst($date->translatedFormat('F Y'));
+
+        $pdf = PDF::loadView('admin.reports.depenses-pdf', [
+            'depenses'     => $depenses,
+            'totalAmount' => $totalAmount,
+            'monthLabel'  => $monthLabel,
+        ]);
+
+        return $pdf->stream(
+            "Depenses_{$request->month}.pdf"
+        );
+    }
 }

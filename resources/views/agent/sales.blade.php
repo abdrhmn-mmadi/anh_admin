@@ -4,7 +4,35 @@
 @section('page-title', 'Gestion des Ventes')
 
 @section('content')
-<div x-data="saleModal()" class="p-6 w-full">
+<div x-data="salesPage()" class="p-6 w-full">
+
+    <!-- =======================
+         FILTER / SEARCH CARD
+    ======================= -->
+    <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+        <!-- Card Title -->
+        <h2 class="text-lg font-semibold mb-4">Recherche</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+                <label class="block mb-1 font-medium">Client</label>
+                <input type="text" placeholder="Nom client" 
+                       x-model="searchName" 
+                       @input.debounce.300ms="fetchSales" 
+                       class="border p-2 w-full rounded">
+            </div>
+            <div>
+                <label class="block mb-1 font-medium">Date</label>
+                <input type="date" x-model="searchDate" @change="fetchSales" class="border p-2 w-full rounded">
+            </div>
+            <div>
+                <button type="button" @click="resetFilters" class="bg-gray-500 text-white px-4 py-2 rounded w-full hover:bg-gray-600 transition">
+                    Réinitialiser
+                </button>
+            </div>
+        </div>
+    </div>
+
 
     <!-- NEW SALE BUTTON -->
     <div class="mb-4 text-center">
@@ -26,14 +54,14 @@
 
                 <!-- PRODUCTS -->
                 <template x-for="(item,index) in items" :key="index">
-                    <div class="grid grid-cols-12 gap-2 mb-2">
+                    <div class="grid grid-cols-12 gap-2 mb-2 items-center">
                         <select class="col-span-5 border p-2"
                                 :name="`products[${index}][product_id]`"
                                 x-model="item.product_id"
                                 @change="setPrice($event,index)" required>
                             <option value="">Produit</option>
                             @foreach($products as $stock)
-                                <option value="{{ $stock->product_id }}" 
+                                <option value="{{ $stock->product_id }}"
                                         :selected="item.product_id == {{ $stock->product_id }}"
                                         data-price="{{ $stock->product->price }}">
                                     {{ $stock->product->name }}
@@ -55,7 +83,7 @@
                         <input type="text" class="col-span-2 border p-2"
                                x-model="item.total" readonly>
 
-                        <button type="button" class="col-span-1 text-red-600" @click="removeItem(index)">✕</button>
+                        <button type="button" class="col-span-1 text-red-600 font-bold" @click="removeItem(index)">✕</button>
                     </div>
                 </template>
 
@@ -75,7 +103,7 @@
                 </select>
 
                 <div class="text-right font-bold mb-4">
-                    TOTAL: <span x-text="grandTotal.toFixed(2)"></span> €
+                    TOTAL: <span x-text="grandTotal.toFixed(2)"></span> KMF
                 </div>
 
                 <div class="flex justify-end gap-2">
@@ -91,43 +119,75 @@
         <table class="w-full border">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="border p-2">Produit</th>
+                    <th class="border p-2">Client</th>
+                    <th class="border p-2">Invoice</th>
+                    <th class="border p-2">Produits</th>
                     <th class="border p-2">Quantité</th>
-                    <th class="border p-2">Total</th>
+                    <th class="border p-2">Région</th>
+                    <th class="border p-2">Total (KMF)</th>
                     <th class="border p-2">Date</th>
                     <th class="border p-2">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($sales as $sale)
-                <tr>
-                    <td class="border p-2">{{ $sale->product->name }}</td>
-                    <td class="border p-2">{{ $sale->quantity }}</td>
-                    <td class="border p-2">{{ number_format($sale->total_price,2) }} €</td>
-                    <td class="border p-2">{{ $sale->created_at->format('d/m/Y') }}</td>
-                    <td class="border p-2 flex gap-2">
-                        <a href="{{ route('agent.sales.pdf', $sale->id) }}" target="_blank" class="bg-blue-600 text-white px-2 py-1 rounded text-sm">PDF</a>
+                <template x-for="sale in sales" :key="sale.id">
+                    <tr>
+                        <td class="border p-2" x-text="sale.customer_name"></td>
+                        <td class="border p-2" x-text="sale.invoice_type.charAt(0).toUpperCase() + sale.invoice_type.slice(1)"></td>
+                        
+                        <!-- NUMBERED PRODUCTS -->
+                        <td class="border p-2 align-top">
+                            <template x-for="(item, index) in sale.items" :key="item.id">
+                                <div>
+                                    <span x-text="`• ${item.product.name}`"></span>
+                                </div>
+                            </template>
+                        </td>
 
-                        <button @click="editSale({{ $sale->id }})" class="bg-yellow-500 text-white px-2 py-1 rounded text-sm">
-                            Modifier
-                        </button>
+                        <!-- NUMBERED QUANTITY -->
+                        <td class="border p-2 align-top">
+                            <template x-for="(item, index) in sale.items" :key="item.id">
+                                <div>
+                                    <span x-text="`• ${item.quantity}`"></span>
+                                </div>
+                            </template>
+                        </td>
 
-                        <form method="POST" action="{{ route('agent.sales.destroy', $sale->id) }}" onsubmit="return confirm('Supprimer cette vente ?')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="bg-red-600 text-white px-2 py-1 rounded text-sm">Supprimer</button>
-                        </form>
-                    </td>
+                        <td class="border p-2">
+                            <span
+                                x-text="[
+                                    ...new Set(
+                                        sale.items
+                                            .map(i => i.region?.name)
+                                            .filter(Boolean)
+                                    )
+                                ].join(', ') || 'N/A'"
+                            ></span>
+                        </td>
+                        <td class="border p-2" x-text="parseFloat(sale.grand_total).toFixed(2)"></td>
+                        <td class="border p-2" x-text="new Date(sale.created_at).toLocaleDateString('fr-FR')"></td>
+                        <td class="border p-2 flex gap-2">
+                            <a :href="`/agent/sales/${sale.id}/pdf`" target="_blank" class="bg-blue-600 text-white px-2 py-1 rounded text-sm">Facture</a>
+                            <button @click="editSale(sale.id)" class="bg-yellow-500 text-white px-2 py-1 rounded text-sm">Modifier</button>
+                            <button @click="deleteSale(sale.id)" class="bg-red-600 text-white px-2 py-1 rounded text-sm">Supprimer</button>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="sales.length === 0">
+                    <td colspan="8" class="text-center p-4">Aucune vente trouvée</td>
                 </tr>
-                @endforeach
             </tbody>
         </table>
     </div>
 </div>
 
 <script>
-function saleModal() {
+function salesPage() {
     return {
+        searchName: '{{ request("client_name") }}',
+        searchDate: '{{ request("date") }}',
+        sales: @json($sales),
+
         modalOpen: false,
         editMode: false,
         editSaleId: null,
@@ -135,6 +195,19 @@ function saleModal() {
         grandTotal: 0,
         customer: { name:'', email:'', phone:'', address:'' },
         invoiceType: 'facture',
+
+        fetchSales() {
+            fetch(`/agent/sales/search?client_name=${this.searchName}&date=${this.searchDate}`)
+                .then(res => res.json())
+                .then(data => this.sales = data)
+                .catch(err => console.error(err));
+        },
+
+        resetFilters() {
+            this.searchName = '';
+            this.searchDate = '';
+            this.fetchSales();
+        },
 
         openModal() { this.modalOpen = true },
         closeModal() { this.modalOpen = false; this.resetForm() },
@@ -171,12 +244,12 @@ function saleModal() {
                 .then(data => {
                     this.editMode = true;
                     this.editSaleId = id;
-                    this.items = [{
-                        product_id: data.product_id,
-                        quantity: data.quantity,
-                        price: data.unit_price,
-                        total: (data.quantity * data.unit_price).toFixed(2)
-                    }];
+                    this.items = data.items.map(i => ({
+                        product_id: i.product_id,
+                        quantity: i.quantity,
+                        price: i.unit_price,
+                        total: (i.quantity * i.unit_price).toFixed(2)
+                    }));
                     this.customer.name = data.customer_name;
                     this.customer.email = data.customer_email;
                     this.customer.phone = data.customer_phone;
@@ -184,7 +257,16 @@ function saleModal() {
                     this.invoiceType = data.invoice_type;
                     this.calcTotal();
                     this.modalOpen = true;
-                });
+                })
+                .catch(err => alert('Erreur lors du chargement de la vente.'));
+        },
+
+        deleteSale(id) {
+            if(!confirm('Supprimer cette vente ?')) return;
+            fetch(`/agent/sales/${id}`, {
+                method: 'DELETE',
+                headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
+            }).then(() => this.fetchSales());
         }
     }
 }

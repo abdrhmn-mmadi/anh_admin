@@ -11,4 +11,10 @@ class ProductType extends Model
 
     protected $fillable = ['name', 'price']; // Make sure 'price' is included
     protected $table = 'product_types'; // optional if Laravel auto-detects
+
+    public function stocks()
+    {
+        return $this->hasMany(ProductStock::class, 'product_id');
+    }
+
 }

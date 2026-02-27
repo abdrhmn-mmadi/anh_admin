@@ -15,81 +15,102 @@ class PaymentController extends Controller
     /**
      * Display a listing of payments.
      */
-    public function index(Request $request)
-    {
-        $query = Payment::with(['employee.region', 'employee.bank'])->latest();
+public function index(Request $request)
+{
+    $query = Payment::with(['employee.region', 'employee.bank'])->latest();
 
-        if ($request->region) {
-            $query->whereHas('employee', function ($q) use ($request) {
-                $q->where('region_id', $request->region);
-            });
-        }
-
-        if ($request->month) {
-            $query->where('month', $request->month);
-        }
-
-        if ($request->search) {
-            $query->whereHas('employee', function ($q) use ($request) {
-                $q->where('nin', 'like', "%{$request->search}%")
-                  ->orWhere('first_name', 'like', "%{$request->search}%")
-                  ->orWhere('last_name', 'like', "%{$request->search}%");
-            });
-        }
-
-        $perPage = $request->per_page ?? 10;
-        $payments = $query->paginate($perPage)->appends($request->all());
-
-        /**
-         * IMPORTANT:
-         * This JSON MUST MATCH what Alpine expects in the Blade
-         */
-        $paymentsJson = $payments->map(function ($p) {
-            return [
-                'id' => $p->id,
-                'bonus' => $p->bonus,
-                'month' => $p->month,
-                'payment_date' => Carbon::parse($p->payment_date)->format('Y-m-d'),
-                'employee_id' => $p->employee_id,
-
-                'employee' => [
-                    'id' => $p->employee->id,
-                    'first_name' => $p->employee->first_name,
-                    'last_name' => $p->employee->last_name,
-                    'nin' => $p->employee->nin,
-                    'salary' => $p->employee->salary,
-
-                    // ✅ NESTED RELATIONS (THIS FIXES YOUR ISSUE)
-                    'bank' => $p->employee->bank ? [
-                        'id' => $p->employee->bank->id,
-                        'name' => $p->employee->bank->name,
-                    ] : null,
-
-                    'region' => $p->employee->region ? [
-                        'id' => $p->employee->region->id,
-                        'name' => $p->employee->region->name,
-                    ] : null,
-                ],
-            ];
+    // Filter by region
+    if ($request->region) {
+        $query->whereHas('employee', function ($q) use ($request) {
+            $q->where('region_id', $request->region);
         });
-
-        $banks = Bank::all();
-        $regions = Region::all();
-
-        $months = [
-            '01' => 'Janvier','02' => 'Février','03' => 'Mars','04' => 'Avril',
-            '05' => 'Mai','06' => 'Juin','07' => 'Juillet','08' => 'Août',
-            '09' => 'Septembre','10' => 'Octobre','11' => 'Novembre','12' => 'Décembre',
-        ];
-
-        return view('admin.payments', compact(
-            'payments',
-            'paymentsJson',
-            'banks',
-            'regions',
-            'months'
-        ));
     }
+
+    // Filter by month
+    if ($request->month) {
+        $query->where('month', $request->month);
+    }
+
+    // Filter by search term
+    if ($request->search) {
+        $query->whereHas('employee', function ($q) use ($request) {
+            $q->where('nin', 'like', "%{$request->search}%")
+              ->orWhere('first_name', 'like', "%{$request->search}%")
+              ->orWhere('last_name', 'like', "%{$request->search}%");
+        });
+    }
+
+    // Pagination
+    $perPage = $request->per_page ?? 10;
+    $payments = $query->paginate($perPage)->appends($request->all());
+
+    // Prepare JSON for Alpine
+    $paymentsJson = $payments->map(function ($p) {
+        return [
+            'id' => $p->id,
+            'bonus' => $p->bonus,
+            'month' => $p->month,
+            'payment_date' => Carbon::parse($p->payment_date)->format('Y-m-d'),
+            'employee_id' => $p->employee_id,
+            'employee' => [
+                'id' => $p->employee->id,
+                'first_name' => $p->employee->first_name,
+                'last_name' => $p->employee->last_name,
+                'nin' => $p->employee->nin,
+                'salary' => $p->employee->salary,
+                'bank' => $p->employee->bank ? [
+                    'id' => $p->employee->bank->id,
+                    'name' => $p->employee->bank->name,
+                ] : null,
+                'region' => $p->employee->region ? [
+                    'id' => $p->employee->region->id,
+                    'name' => $p->employee->region->name,
+                ] : null,
+            ],
+        ];
+    });
+
+    // Banks and regions for filters
+    $banks = Bank::all();
+    $regions = Region::all();
+
+    // Generate months dynamically from existing payments
+    $availableMonths = Payment::select('month')
+        ->whereNotNull('month')
+        ->where('month', '!=', '')
+        ->distinct()
+        ->orderByDesc('month')
+        ->pluck('month')
+        ->filter()
+        ->values();
+
+    $months = [];
+    foreach ($availableMonths as $ym) {
+        try {
+            // Only get the month name without the year
+            $months[$ym] = ucfirst(Carbon::createFromFormat('Y-m', $ym)
+                ->locale('fr')
+                ->translatedFormat('F'));  // Only month name, no year here
+        } catch (\Exception $e) {
+            // Skip invalid
+        }
+    }
+
+    // Fallback if no months exist
+    if (empty($months)) {
+        $currentMonth = Carbon::now()->format('Y-m');
+        $months[$currentMonth] = ucfirst(Carbon::now()->locale('fr')->translatedFormat('F'));
+    }
+
+    return view('admin.payments', compact(
+        'payments',
+        'paymentsJson',
+        'banks',
+        'regions',
+        'months'
+    ));
+}
+
 
     /**
      * Store a newly created payment.
@@ -107,7 +128,6 @@ class PaymentController extends Controller
 
         $employee = Employee::findOrFail($request->employee_id);
         $bonus = $request->bonus ?? 0;
-
         $salary = $employee->salary;
         $igr = $this->calculateIGR($salary);
         $total = ($salary + $bonus) - $igr;

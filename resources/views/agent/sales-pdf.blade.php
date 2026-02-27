@@ -5,9 +5,7 @@
     <title>{{ strtoupper($type) }}</title>
 
     <style>
-        @page {
-            margin: 0;
-        }
+        @page { margin: 0; }
 
         body {
             font-family: DejaVu Sans, sans-serif;
@@ -17,7 +15,6 @@
             padding: 20px;
         }
 
-        /* ================= HEADER ================= */
         header {
             position: fixed;
             top: 0;
@@ -28,18 +25,14 @@
         }
 
         .header-image {
-            width: 100%;
-            height: 160px; /* adjust if needed */
+            width: 95%;
+            height: 200px;
             object-fit: cover;
             display: block;
         }
 
-        .header-text {
-            text-align: center;
-            padding: 10px 0;
-        }
+        .header-text { text-align: center; padding: 0px 0; }
 
-        /* ================= FOOTER ================= */
         footer {
             position: fixed;
             bottom: 0;
@@ -47,17 +40,13 @@
             right: 0;
             text-align: center;
             font-size: 10px;
-            color: #555;
             border-top: 1px solid #ccc;
-            padding: 6px 0;
+            padding: 6px 0 20px;
+            color: #008000;
         }
 
-        /* ================= CONTENT ================= */
-        .content {
-            margin: 230px 20px 100px 20px;
-        }
+        .content { margin: 250px 20px 100px 20px; }
 
-        /* Customer Card */
         .customer-card {
             border: 1px solid #ccc;
             padding: 15px;
@@ -66,9 +55,7 @@
             margin-bottom: 20px;
         }
 
-        .customer-card p {
-            margin: 5px 0;
-        }
+        .customer-card p { margin: 5px 0; }
 
         table {
             width: 100%;
@@ -82,43 +69,33 @@
             text-align: left;
         }
 
-        th {
-            background-color: #f0f0f0;
-        }
+        th { background-color: #f0f0f0; }
 
-        .total-row td {
-            font-weight: bold;
-        }
+        .total-row td { font-weight: bold; }
 
         .agent-info {
             text-align: right;
             margin-top: 40px;
         }
 
-        .agent-info p {
-            margin: 5px 0;
-        }
+        .agent-info p { margin: 5px 0; }
     </style>
 </head>
 
 <body>
 
-<!-- ================= HEADER ================= -->
 <header>
     <img src="{{ public_path('photos/entete.png') }}" class="header-image" alt="Header Image">
-
     <div class="header-text">
-        <h2>{{ strtoupper($type) }}</h2> 
+        <h2>{{ strtoupper($type) }}</h2>
     </div>
 </header>
 
-<!-- ================= FOOTER ================= -->
 <footer>
-    <p>Document généré par le système de gestion</p>
-    <i>Document généré par le système de gestion</i>
+   <i>Rue de la COI, Coulée-Yéménia, Moroni, Union des Comores. Tél : +269 733 25 82.</i><br>
+   <i>E-mail : contact@anh.km. Site web : https://anh.km</i>
 </footer>
 
-<!-- ================= CONTENT ================= -->
 <div class="content">
 
     <!-- Customer Info -->
@@ -146,21 +123,23 @@
                 <th>Produit</th>
                 <th>Quantité</th>
                 <th>Prix Unitaire</th>
-                <th>Total</th>
+                <th>Total (KMF)</th>
+                <th>Région</th>
             </tr>
         </thead>
         <tbody>
             @foreach($lines as $line)
                 <tr>
-                    <td>{{ $line['product']->name ?? $line['name'] }}</td>
+                    <td>{{ $line['name'] }}</td>
                     <td>{{ $line['quantity'] }}</td>
-                    <td>{{ number_format($line['unit_price'], 2) }} €</td>
-                    <td>{{ number_format($line['total'], 2) }} €</td>
+                    <td>{{ number_format($line['unit_price'], 2) }}</td>
+                    <td>{{ number_format($line['total'], 2) }}</td>
+                    <td>{{ $line['region_name'] ?? 'N/A' }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="3">TOTAL</td>
-                <td>{{ number_format($grandTotal, 2) }} €</td>
+                <td colspan="4">TOTAL</td>
+                <td>{{ number_format($grandTotal, 2) }}</td>
             </tr>
         </tbody>
     </table>
@@ -175,7 +154,6 @@
     @if($type === 'proforma')
         <p style="margin-top:20px;">
             <em>Document sans valeur comptable (Proforma).</em>
-
         </p>
     @endif
 

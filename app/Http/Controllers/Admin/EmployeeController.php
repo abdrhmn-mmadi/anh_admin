@@ -9,6 +9,8 @@ use App\Models\Bank;
 use App\Models\Region;
 use App\Models\Department;
 use App\Models\Service;
+use App\Exports\EmployeesExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EmployeeController extends Controller
 {
@@ -16,32 +18,34 @@ class EmployeeController extends Controller
     {
         $query = Employee::with(['bank', 'region', 'department', 'service']);
 
-        // Recherche par NIN ou Nom / Prénom
+        // Search by NIN, first name, or last name
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('nin', 'like', "%$search%")
                   ->orWhere('first_name', 'like', "%$search%")
                   ->orWhere('last_name', 'like', "%$search%");
             });
         }
 
-        // Filtre par région
+        // Filter by region
         if ($request->filled('region_id')) {
             $query->where('region_id', $request->region_id);
         }
 
-        // Filtre par département
+        // Filter by department
         if ($request->filled('department_id')) {
             $query->where('department_id', $request->department_id);
         }
 
-        // Filtre par type de contrat
+        // Filter by contract type
         if ($request->filled('contract_type')) {
             $query->where('contract_type', $request->contract_type);
         }
 
-        $employees = $query->get();
+        // ✅ PAGINATION (20 default)
+        $perPage = $request->get('per_page', 20);
+        $employees = $query->paginate($perPage)->withQueryString();
 
         $banks = Bank::all();
         $regions = Region::all();
@@ -57,11 +61,28 @@ class EmployeeController extends Controller
         ));
     }
 
+    // ✅ EXPORT EXCEL WITH FILTERS
+    public function export(Request $request)
+    {
+        $filters = $request->only([
+            'search',
+            'region_id',
+            'department_id',
+            'contract_type'
+        ]);
+
+        return Excel::download(
+            new EmployeesExport($filters),
+            'employees.xlsx'
+        );
+    }
+
     public function store(Request $request)
     {
         $request->validate([
             'first_name'     => 'required|string|max:255',
             'last_name'      => 'required|string|max:255',
+            'sex'            => 'required|in:M,F',
             'dob'            => 'required|date',
             'address'        => 'required|string|max:255',
             'email'          => 'required|email|unique:employees,email',
@@ -88,6 +109,7 @@ class EmployeeController extends Controller
         $request->validate([
             'first_name'     => 'required|string|max:255',
             'last_name'      => 'required|string|max:255',
+            'sex'            => 'required|in:M,F',
             'position'       => 'required|string|max:255',
             'salary'         => 'required|numeric',
             'department_id'  => 'required|exists:departments,id',

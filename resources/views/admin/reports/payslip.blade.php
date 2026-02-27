@@ -9,10 +9,21 @@
         body { font-family: DejaVu Sans, sans-serif; font-size: 12px; margin: 0; padding: 20px; color:#000; }
 
         header { position: fixed; top: 0; left:0; right:0; width:100%; padding:20px; }
-        .header-image { width:100%; height:160px; object-fit: cover; }
+        .header-image { width:95%; height:160px; object-fit: cover; }
         .header-text { text-align:center; padding:10px 0; }
 
-        footer { position: fixed; bottom:0; left:0; right:0; text-align:center; font-size:10px; color:#555; border-top:1px solid #ccc; padding:6px 0; }
+         footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 10px;
+            color: #555;
+            border-top: 1px solid #ccc;
+            padding: 6px 0 20px;
+            color: #008000;
+        }
 
         .content { margin: 250px 20px 100px 20px; }
 
@@ -68,25 +79,33 @@
 </header>
 
 <footer>
-    <p>Document généré par le système de gestion</p>
+   <i>Rue de la COI, Coulée-Yéménia, Moroni, Union des Comores. Tél : +269 733 25 82.</i><br>
+   <i>E-mail : contact@anh.km. Site web : https://anh.km</i>
 </footer>
 
 <div class="content">
 
-    <!-- Employee Info Card -->
-    <div class="card">
-        <strong>Employé :</strong>
-        <p>Nom : {{ $employee->first_name }} {{ $employee->last_name }}</p>
-        <p>NIN : {{ $employee->nin }}</p>
-        <p>Adresse : {{ $employee->address ?? '-' }}</p>
-        <p>Banque : {{ $employee->bank->name ?? '-' }}</p>
-        <p>Région : {{ $employee->region->name ?? '-' }}</p>
-    </div>
+<!-- Employee Info Card -->
+<div class="card">
+    <strong>Employé :</strong>
+    <p><strong>Nom : </strong>{{ $employee->first_name }} {{ $employee->last_name }}</p>
+    <p><strong>Matricule : </strong>{{ $employee->nin }}</p>
+    <p><strong>Adresse :</strong> {{ $employee->address ?? '-' }}</p>
+    <p><strong>Région : </strong>{{ $employee->region->name ?? '-' }}</p>
+    <p><strong>Position :</strong> {{ $employee->position ?? '-' }}</p>
+</div>
 
-    <!-- Indice Card -->
-    <div class="card">
-        <strong>Indice : {{ $indice }}</strong>
-    </div>
+<!-- Bank Info Card -->
+<div class="card">
+    <strong>Informations Bancaires :</strong>
+    <p><strong>Banque : </strong>{{ $employee->bank->name ?? '-' }}</p>
+    <p><strong>Numéro de compte : </strong>{{ $employee->account_number ?? '-' }}</p>
+</div>
+
+<!-- Indice Card -->
+<div class="card">
+    <strong>Indice : {{ $indice }}</strong>
+</div>
 
     <!-- Salary Table -->
     <table>
@@ -102,7 +121,7 @@
                 <td>{{ number_format($employee->salary, 0, ',', ' ') }}</td>
             </tr>
             <tr>
-                <td>Bonus</td>
+                <td>Indemnité</td>
                 <td>{{ number_format($payment->bonus, 0, ',', ' ') }}</td>
             </tr>
             <tr class="total-row">
@@ -122,11 +141,10 @@
 
     <!-- Agent Info -->
     <div class="agent-info">
-        <p>Généré par : {{ auth()->user()->name }}</p>
-        <p>Signature : ____________________</p>
+        <p><strong>LE DIRECTEUR GENERAL</strong></p> <br>
+        <p> ________________________</p>
         <p>Date : {{ now()->format('d/m/Y') }}</p>
     </div>
-
 </div>
 </body>
 </html>

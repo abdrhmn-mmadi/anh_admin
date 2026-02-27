@@ -191,67 +191,58 @@ class AgentController extends Controller
        DASHBOARD
     ========================== */
 
-public function dashboard()
-{
-    $agent = Auth::user();
+    public function dashboard()
+    {
+        $agent = Auth::user();
 
-    /* ==========================
-       PRODUCTS BY TYPE (STOCK)
-    ========================== */
-    $productsByType = DB::table('product_stocks')
-        ->join('product_types', 'product_stocks.product_id', '=', 'product_types.id')
-        ->select('product_types.name', DB::raw('SUM(product_stocks.total_quantity) as total'))
-        ->where('product_stocks.region_id', $agent->region_id)
-        ->groupBy('product_types.name')
-        ->get();
+        /* ==========================
+           PRODUCTS BY TYPE (STOCK)
+        ========================== */
+        $productsByType = DB::table('product_stocks')
+            ->join('product_types', 'product_stocks.product_id', '=', 'product_types.id')
+            ->select('product_types.name', DB::raw('SUM(product_stocks.total_quantity) as total'))
+            ->where('product_stocks.region_id', $agent->region_id)
+            ->groupBy('product_types.name')
+            ->get();
 
-    /* ==========================
-       MONTHLY SALES (QTY + AMOUNT)
-    ========================== */
-    $monthlySalesQuery = DB::table('sales')
-        ->selectRaw('
-            MONTH(created_at) as month,
-            SUM(quantity) as total_quantity,
-            SUM(total_price) as total_amount
-        ')
-        ->where('user_id', $agent->id)
-        ->groupBy('month')
-        ->orderBy('month')
-        ->get();
+        /* ==========================
+           MONTHLY SALES (AMOUNT ONLY)
+        ========================== */
+        $monthlySalesQuery = DB::table('sales')
+            ->selectRaw('MONTH(created_at) as month, SUM(grand_total) as total_amount')
+            ->where('user_id', $agent->id)
+            ->groupBy('month')
+            ->orderBy('month')
+            ->get();
 
-    $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        $months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-    $monthlySalesQty = array_fill(0, 12, 0);
-    $monthlySalesAmount = array_fill(0, 12, 0);
+        $monthlySalesAmount = array_fill(0, 12, 0);
 
-    foreach ($monthlySalesQuery as $sale) {
-        $monthlySalesQty[$sale->month - 1] = $sale->total_quantity;
-        $monthlySalesAmount[$sale->month - 1] = $sale->total_amount;
+        foreach ($monthlySalesQuery as $sale) {
+            $monthlySalesAmount[$sale->month - 1] = $sale->total_amount;
+        }
+
+        return view('agent.welcome', [
+            /* Cards */
+            'totalProducts' => DB::table('product_stocks')
+                ->where('region_id', $agent->region_id)
+                ->sum('total_quantity'),
+
+            'totalSales' => DB::table('sales')
+                ->where('user_id', $agent->id)
+                ->count(), // total invoices since quantity doesn't exist
+
+            'totalRevenue' => DB::table('sales')
+                ->where('user_id', $agent->id)
+                ->sum('grand_total'),
+
+            /* Charts */
+            'productsByTypeLabels' => $productsByType->pluck('name'),
+            'productsByTypeData'   => $productsByType->pluck('total'),
+
+            'monthlySalesLabels'   => $months,
+            'monthlySalesAmount'   => $monthlySalesAmount,
+        ]);
     }
-
-    return view('agent.welcome', [
-        /* Cards */
-        'totalProducts' => DB::table('product_stocks')
-            ->where('region_id', $agent->region_id)
-            ->sum('total_quantity'),
-
-        'totalSales' => DB::table('sales')
-            ->where('user_id', $agent->id)
-            ->sum('quantity'),
-
-        'totalRevenue' => DB::table('sales')
-            ->where('user_id', $agent->id)
-            ->sum('total_price'),
-
-        /* Charts */
-        'productsByTypeLabels' => $productsByType->pluck('name'),
-        'productsByTypeData'   => $productsByType->pluck('total'),
-
-        'monthlySalesLabels'   => $months,
-        'monthlySalesData'     => $monthlySalesQty,
-        'monthlySalesAmount'   => $monthlySalesAmount,
-    ]);
-}
-
-
 }

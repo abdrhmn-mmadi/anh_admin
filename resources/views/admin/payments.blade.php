@@ -29,6 +29,7 @@
     <div x-cloak x-show="showFilters" x-transition
          class="bg-white border rounded shadow p-6 space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <!-- Region Filter -->
             <div>
                 <label class="text-sm font-medium block mb-1">Région</label>
                 <select x-model="filterRegion" @change="applyFilters()" class="w-full border rounded p-2">
@@ -41,25 +42,27 @@
                 </select>
             </div>
 
+            <!-- Month Filter -->
             <div>
                 <label class="text-sm font-medium block mb-1">Mois</label>
                 <select x-model="filterMonth" @change="applyFilters()" class="w-full border rounded p-2">
                     <option value="">Tous</option>
-                    @php $year = now()->year; @endphp
                     @foreach($months as $num => $label)
-                        <option value="{{ $year }}-{{ $num }}" {{ request('month')==$year.'-'.$num?'selected':'' }}>
-                            {{ $label }} {{ $year }}
+                        <option value="{{ $num }}" {{ request('month')==$num?'selected':'' }}>
+                            {{ $label }}
                         </option>
                     @endforeach
                 </select>
             </div>
 
+            <!-- Search Filter -->
             <div>
                 <label class="text-sm font-medium block mb-1">Rechercher</label>
-                <input type="text" x-model="tableSearch" @keydown.enter="applyFilters()" placeholder="Nom ou NIN..." 
+                <input type="text" x-model="tableSearch" @keydown.enter="applyFilters()" placeholder="Nom ou Matricule..." 
                        class="w-full border rounded p-2">
             </div>
 
+            <!-- Reset Filters -->
             <div>
                 <button @click="resetFilters()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded w-full">
                     Réinitialiser
@@ -83,9 +86,9 @@
                     <input type="hidden" name="_method" value="PUT">
                 </template>
 
-                <!-- NIN / Name Search -->
+                <!-- Matricule / Name Search -->
                 <div x-show="!editMode" class="space-y-2 relative">
-                    <label class="text-sm font-medium">NIN ou Nom Employé</label>
+                    <label class="text-sm font-medium">Matricule ou Nom Employé</label>
                     <input type="text" x-model="search" @input.debounce.300ms="searchEmployee" placeholder="Ex: 0121758 ou Nom..." 
                            class="w-full border rounded p-2">
 
@@ -98,6 +101,7 @@
                     </div>
                 </div>
 
+                <!-- Selected Employee Info -->
                 <div x-show="employee.name" class="text-gray-700">
                     <strong>Nom :</strong> <span x-text="employee.name"></span>
                 </div>
@@ -110,15 +114,18 @@
                     <div class="p-2 border rounded bg-gray-100" x-text="employee.bank_name"></div>
                 </div>
 
+                <!-- Month Selection -->
                 <div>
                     <label class="text-sm font-medium">Mois</label>
                     <select name="month" x-model="employee.month" class="w-full border rounded p-2" required>
-                        @foreach($months as $num => $label)
-                            <option value="{{ $year }}-{{ $num }}">{{ $label }} {{ $year }}</option>
-                        @endforeach
+                        <!-- Dynamically generate the months -->
+                        <template x-for="month in monthsList" :key="month.value">
+                            <option :value="month.value" x-text="month.label"></option>
+                        </template>
                     </select>
                 </div>
 
+                <!-- Salary, Bonus, IGR -->
                 <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="text-sm font-medium">Salaire</label>
@@ -134,11 +141,13 @@
                     </div>
                 </div>
 
+                <!-- Total Payment -->
                 <div>
                     <label class="text-sm font-medium">Total à payer</label>
                     <input type="number" name="total_amount" class="w-full bg-gray-100 border rounded p-2" x-model="total" readonly>
                 </div>
 
+                <!-- Payment Date -->
                 <div>
                     <label class="text-sm font-medium">Date de paiement</label>
                     <input type="date" name="payment_date" x-model="employee.payment_date" class="w-full border rounded p-2" required>
@@ -164,9 +173,9 @@
                 @csrf
                 <label class="text-sm font-medium">Mois de paiement</label>
                 <select name="month" class="w-full mb-4 border rounded p-2" required>
-                    @foreach($months as $num => $label)
-                        <option value="{{ $year }}-{{ $num }}">{{ $label }} {{ $year }}</option>
-                    @endforeach
+                    <template x-for="month in monthsList" :key="month.value">
+                        <option :value="month.value" x-text="month.label"></option>
+                    </template>
                 </select>
                 <button class="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded shadow">Payer Tous</button>
             </form>
@@ -181,7 +190,7 @@
                     <th class="p-2 text-left">Employé</th>
                     <th class="p-2 text-left">Région</th>
                     <th class="p-2 text-left">Banque</th>
-                    <th class="p-2 text-left">Bonus</th>
+                    <th class="p-2 text-left">Indemnité</th>
                     <th class="p-2 text-left">IGR</th>
                     <th class="p-2 text-left">Total</th>
                     <th class="p-2 text-left">Date</th>
@@ -260,8 +269,12 @@ function paymentsPage() {
         total: 0,
         suggestions: [],
 
-        // Use precomputed JSON from the controller
+        monthsList: [],
         payments: @json($paymentsJson),
+
+        init() {
+            this.generateMonthOptions(); // <-- populate months on page load
+        },
 
         openForm() { 
             this.showForm = true; 
@@ -284,6 +297,35 @@ function paymentsPage() {
             this.suggestions = []; 
         },
 
+        generateMonthOptions() {
+            let months = [];
+            let now = new Date();
+
+            // If current month is Jan–Mar → fiscal year started last year
+            let fiscalYearStart =
+                now.getMonth() < 3
+                    ? new Date(now.getFullYear() - 1, 3, 1) // April last year
+                    : new Date(now.getFullYear(), 3, 1);    // April this year
+
+            for (let i = 0; i < 12; i++) {
+                let m = new Date(
+                    fiscalYearStart.getFullYear(),
+                    fiscalYearStart.getMonth() + i,
+                    1
+                );
+
+                months.push({
+                    value: m.getMonth() + 1,
+                    label: m.toLocaleString('fr-FR', {
+                        month: 'long',
+                        year: 'numeric'
+                    })
+                });
+            }
+
+            this.monthsList = months;
+        },
+
         editPayment(payment){
             this.showForm = true;
             this.editMode = true;
@@ -292,8 +334,8 @@ function paymentsPage() {
                 id: payment.employee_id,
                 name: payment.employee.first_name + ' ' + payment.employee.last_name,
                 salary: payment.employee.salary,
-                bank_name: payment.employee.bank_name,
-                bank_id: payment.employee.bank_id,
+                bank_name: payment.employee.bank.name,
+                bank_id: payment.employee.bank.id,
                 month: payment.month,
                 payment_date: payment.payment_date
             };
@@ -366,5 +408,4 @@ function paymentsPage() {
     }
 }
 </script>
-
 @endsection

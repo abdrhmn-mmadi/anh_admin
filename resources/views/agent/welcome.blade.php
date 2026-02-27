@@ -5,7 +5,9 @@
 
 @section('content')
 
-<!-- Top Cards -->
+<!-- =======================
+    KPI CARDS
+======================= -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
 
     <!-- Products -->
@@ -30,7 +32,7 @@
     <div class="bg-white p-6 rounded-lg shadow">
         <h2 class="text-lg font-semibold">Chiffre d'affaires</h2>
         <p class="text-2xl font-bold text-green-600 mt-2">
-            {{ number_format(array_sum($monthlySalesAmount), 2) }} KMF
+            {{ number_format(array_sum($monthlySalesAmount ?? []), 2) }} KMF
         </p>
     </div>
 
@@ -38,7 +40,9 @@
     <div class="bg-white p-6 rounded-lg shadow">
         <h2 class="text-lg font-semibold">Meilleur mois</h2>
         @php
-            $maxAmount = max($monthlySalesAmount);
+            $monthlySalesAmount = $monthlySalesAmount ?? [];
+            $monthlySalesLabels = $monthlySalesLabels ?? [];
+            $maxAmount = !empty($monthlySalesAmount) ? max($monthlySalesAmount) : 0;
             $bestMonthIndex = array_search($maxAmount, $monthlySalesAmount);
         @endphp
         <p class="text-xl font-bold mt-2">
@@ -51,7 +55,9 @@
 
 </div>
 
-<!-- Charts -->
+<!-- =======================
+    CHARTS
+======================= -->
 <div class="graph-container">
 
     <div class="graph-card">
@@ -80,6 +86,7 @@
     flex-wrap: wrap;
     gap: 20px;
 }
+
 .graph-card {
     background: #fff;
     border-radius: 8px;
@@ -88,10 +95,12 @@
     flex: 1 1 400px;
     min-width: 300px;
 }
+
 .graph-card h2 {
     margin-bottom: 10px;
     font-size: 1.2rem;
 }
+
 canvas {
     max-height: 300px;
 }
@@ -104,14 +113,37 @@ canvas {
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    const productLabels = @json($productsByTypeLabels);
-    const productData   = @json($productsByTypeData);
+    /* =========================
+       Last 12 months including current
+    ========================= */
+    const months = [];
+    const salesData = [];
+    const revenueData = [];
 
-    const salesLabels   = @json($monthlySalesLabels);
-    const salesData     = @json($monthlySalesData);
-    const revenueData   = @json($monthlySalesAmount);
+    @php
+        // Generate last 12 months including current in PHP
+        $last12Months = collect();
+        $salesDataArr = [];
+        $revenueDataArr = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $date = \Carbon\Carbon::now()->subMonths($i);
+            $last12Months->push($date->format('M Y'));
+
+            // Fetch data for each month or 0 if empty
+            $salesDataArr[] = $monthlySalesData[$i] ?? 0;
+            $revenueDataArr[] = $monthlySalesAmount[$i] ?? 0;
+        }
+    @endphp
+
+    const salesLabels = @json($last12Months->toArray());
+    const salesQuantityData = @json($monthlySalesData ?? []);
+    const revenueChartData = @json($monthlySalesAmount ?? []);
 
     // Products by type
+    const productLabels = @json($productsByTypeLabels ?? []);
+    const productData   = @json($productsByTypeData ?? []);
+
+    // ===== Products Chart =====
     new Chart(document.getElementById('productsChart'), {
         type: 'bar',
         data: {
@@ -128,14 +160,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Monthly sales quantity
+    // ===== Sales Chart =====
     new Chart(document.getElementById('salesChart'), {
         type: 'line',
         data: {
             labels: salesLabels,
             datasets: [{
                 label: 'Quantité vendue',
-                data: salesData,
+                data: salesQuantityData,
                 borderColor: 'rgba(59,130,246,1)',
                 tension: 0.4,
                 fill: false
@@ -147,14 +179,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Monthly revenue
+    // ===== Revenue Chart =====
     new Chart(document.getElementById('revenueChart'), {
         type: 'line',
         data: {
             labels: salesLabels,
             datasets: [{
                 label: 'Chiffre d\'affaires (KMF)',
-                data: revenueData,
+                data: revenueChartData,
                 borderColor: 'rgba(234,88,12,1)',
                 backgroundColor: 'rgba(234,88,12,0.2)',
                 fill: true,

@@ -19,8 +19,23 @@ use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\DepenseController;
+use App\Http\Controllers\Admin\AdminSalesController;
+
 use App\Http\Controllers\Agent\AgentController;
 use App\Http\Controllers\Agent\SaleController;
+
+use App\Http\Controllers\Manager\ManagerEmployeeController;
+use App\Http\Controllers\Manager\ManagerController;
+use App\Http\Controllers\Manager\ManagerProductController;
+use App\Http\Controllers\Manager\ManagerDashboardController;
+use App\Http\Controllers\Manager\ManagerSalesController;
+
+
+
+Route::prefix('admin')->middleware(['auth', 'is_admin'])->group(function () {
+    Route::get('sales', [AdminSalesController::class, 'index'])->name('admin.sales');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -67,20 +82,13 @@ Route::prefix('admin')
     ->middleware('auth')
     ->group(function () {
 
-        /* ======================
-           DASHBOARD
-        ====================== */
-        Route::get('/welcome', [DashboardController::class, 'index'])
-    ->name('dashboard');
+        // Dashboard
+        Route::get('/welcome', [DashboardController::class, 'index'])->name('dashboard');
 
-        /* ======================
-           USERS
-        ====================== */
+        // Users
         Route::resource('users', UserController::class);
 
-        /* ======================
-           DEPARTMENTS & SERVICES
-        ====================== */
+        // Departments & Services
         Route::get('/departments', [DepartmentController::class, 'index'])->name('departments.index');
         Route::post('/departments', [DepartmentController::class, 'storeDepartment'])->name('departments.store');
         Route::post('/services', [DepartmentController::class, 'storeService'])->name('services.store');
@@ -88,42 +96,50 @@ Route::prefix('admin')
         Route::delete('/services/{id}', [DepartmentController::class, 'destroyService'])->name('services.destroy');
         Route::get('/departments/{department}/services', [DepartmentController::class, 'services'])->name('departments.services');
 
-        /* ======================
-           PRODUCTS / EMPLOYEES / BANKS
-        ====================== */
+        // Products / Employees / Banks
         Route::resource('product-types', ProductTypeController::class);
+
+        // ✅ EMPLOYEES
+        // Static route first (export)
+        Route::get('employees/export', [EmployeeController::class, 'export'])->name('employees.export');
+
+        // Then resource route (index, create, store, show, edit, update, destroy)
         Route::resource('employees', EmployeeController::class);
+
+        // Banks
         Route::resource('banks', BankController::class);
 
-        /* ======================
-           PAYMENTS
-        ====================== */
+        // Payments
         Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
         Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
         Route::put('/payments/{payment}', [PaymentController::class, 'update'])->name('payments.update');
         Route::delete('/payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
+        Route::post('/payments/search-employee', [PaymentController::class, 'searchEmployee'])->name('payments.searchEmployee');
+        Route::post('/payments/pay-all', [PaymentController::class, 'payAll'])->name('payments.payAll');
 
-        Route::post('/payments/search-employee', [PaymentController::class, 'searchEmployee'])
-            ->name('payments.searchEmployee');
-
-        Route::post('/payments/pay-all', [PaymentController::class, 'payAll'])
-            ->name('payments.payAll');
-
-        /* ======================
-           REPORTS
-        ====================== */
+        // Reports
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
-
         Route::get('/reports/payslip', [ReportController::class, 'payslip'])->name('reports.payslip');
         Route::get('/reports/bank', [ReportController::class, 'bank'])->name('reports.bank');
-        Route::get('/reports/whole', [ReportController::class, 'whole'])->name('reports.whole');
         Route::get('/reports/expense', [ReportController::class, 'expense'])->name('reports.expense');
+        Route::get('/reports/complete', [ReportController::class, 'completeList'])->name('reports.complete');
+        Route::get('/reports/complete/excel', [ReportController::class, 'completeExcel'])->name('reports.complete.excel');
 
-        Route::get('/reports/complete', [ReportController::class, 'completeList'])
-            ->name('reports.complete');
+        // Products (display only)
+        Route::get('/products', [ProductTypeController::class, 'products'])->name('products.index');
+        Route::get('/products/export', [ProductTypeController::class, 'export'])->name('products.export');
 
-        Route::get('/reports/complete/excel', [ReportController::class, 'completeExcel'])
-            ->name('reports.complete.excel');
+        // Depenses
+        Route::get('/depenses', [DepenseController::class, 'index'])->name('depenses');
+        Route::post('/depenses', [DepenseController::class, 'store'])->name('depenses.store');
+        Route::put('/depenses/{depense}', [DepenseController::class, 'update'])->name('depenses.update');
+        Route::delete('/depenses/{depense}', [DepenseController::class, 'destroy'])->name('depenses.destroy');
+        Route::post('/depenses/pdf', [DepenseController::class, 'pdf'])->name('depenses.pdf');
+
+        // Sales (Ventes)
+        Route::get('sales/export', [AdminSalesController::class, 'export'])->name('sales.export');
+        Route::get('sales', [AdminSalesController::class, 'index'])->name('sales.index');
+
     });
 
 /*
@@ -135,7 +151,53 @@ Route::prefix('manager')
     ->name('manager.')
     ->middleware('auth')
     ->group(function () {
-        Route::get('/welcome', fn () => view('manager.welcome'))->name('dashboard');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Dashboard
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/welcome', [ManagerDashboardController::class, 'index'])
+            ->name('dashboard');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Employees
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/employees', [ManagerEmployeeController::class, 'index'])
+            ->name('employees');
+
+        Route::get('/employees/export', [ManagerEmployeeController::class, 'export'])
+            ->name('employees.export');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Profile
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/profile', [ManagerController::class, 'profile'])
+            ->name('profile');
+
+        Route::put('/profile/info', [ManagerController::class, 'updateInfo'])
+            ->name('profile.info.update');
+
+        Route::put('/profile/password', [ManagerController::class, 'updatePassword'])
+            ->name('profile.password.update');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Products
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/products', [ManagerProductController::class, 'index'])
+            ->name('products');
+
+         // Sales (Ventes)
+        Route::get('sales', [ManagerSalesController::class, 'index'])->name('sales.index');
+        Route::get('sales/export', [ManagerSalesController::class, 'export'])->name('sales.export');
+
+
     });
 
 /*
@@ -152,9 +214,12 @@ Route::prefix('agent')
 
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+        Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit'); // <--- add this
         Route::put('/sales/{sale}', [SaleController::class, 'update'])->name('sales.update');
         Route::delete('/sales/{sale}', [SaleController::class, 'destroy'])->name('sales.destroy');
         Route::get('/sales/{sale}/pdf', [SaleController::class, 'pdf'])->name('sales.pdf');
+        Route::get('/sales/search', [SaleController::class, 'search']);
+
 
         Route::get('/products', [AgentController::class, 'products'])->name('products.index');
         Route::post('/products', [AgentController::class, 'store'])->name('products.store');
@@ -172,8 +237,6 @@ Route::prefix('agent')
 |--------------------------------------------------------------------------
 */
 Route::get('/', fn () => redirect()->route('login'));
-
-
 
 
 

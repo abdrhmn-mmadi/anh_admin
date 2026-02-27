@@ -1,4 +1,4 @@
-@extends('agent.layout') {{-- Using same layout as agent dashboard --}}
+@extends('admin.layout')
 
 @section('title', 'Accueil')
 @section('page-title', 'Bienvenue, Admin !')
@@ -8,38 +8,26 @@
 <!-- =======================
     KPI CARDS
 ======================= -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
 
-    <!-- Users -->
-    <div class="bg-white p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold">Utilisateurs</h2>
-        <p class="text-gray-600 mt-2">
-            Total : <span class="font-bold">{{ $totalUsers ?? 0 }}</span>
-        </p>
+    <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-xl shadow-lg">
+        <p class="text-sm opacity-80">Utilisateurs</p>
+        <h2 class="text-3xl font-bold">{{ $totalUsers ?? 0 }}</h2>
     </div>
 
-    <!-- Employees -->
-    <div class="bg-white p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold">Employés</h2>
-        <p class="text-gray-600 mt-2">
-            Total : <span class="font-bold">{{ $totalEmployees ?? 0 }}</span>
-        </p>
+    <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-xl shadow-lg">
+        <p class="text-sm opacity-80">Employés</p>
+        <h2 class="text-3xl font-bold">{{ $totalEmployees ?? 0 }}</h2>
     </div>
 
-    <!-- Products -->
-    <div class="bg-white p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold">Produits</h2>
-        <p class="text-gray-600 mt-2">
-            Total : <span class="font-bold">{{ $totalProducts ?? 0 }}</span>
-        </p>
+    <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-lg">
+        <p class="text-sm opacity-80">Produits</p>
+        <h2 class="text-3xl font-bold">{{ $totalProducts ?? 0 }}</h2>
     </div>
 
-    <!-- Sales -->
-    <div class="bg-white p-6 rounded-lg shadow">
-        <h2 class="text-lg font-semibold">Ventes</h2>
-        <p class="text-gray-600 mt-2">
-            Total : <span class="font-bold">{{ $totalSales ?? 0 }}</span>
-        </p>
+    <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-lg">
+        <p class="text-sm opacity-80">Ventes</p>
+        <h2 class="text-3xl font-bold">{{ $totalSales ?? 0 }}</h2>
     </div>
 
 </div>
@@ -47,146 +35,123 @@
 <!-- =======================
     CHARTS
 ======================= -->
-<div class="graph-container">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-    <div class="graph-card">
-        <h2>Produits par type</h2>
-        <canvas id="productsChart"></canvas>
+    <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="font-semibold mb-4">Produits par type</h2>
+        <div class="h-[300px]">
+            <canvas id="productsChart"></canvas>
+        </div>
     </div>
 
-    <div class="graph-card">
-        <h2>Produits par région</h2>
-        <canvas id="productsRegionChart"></canvas>
+    <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="font-semibold mb-4">Produits par région</h2>
+        <div class="h-[300px]">
+            <canvas id="productsRegionChart"></canvas>
+        </div>
     </div>
 
-    <div class="graph-card">
-        <h2>Ventes mensuelles</h2>
-        <canvas id="salesChart"></canvas>
+    <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="font-semibold mb-4">Ventes mensuelles (12 derniers mois)</h2>
+        <div class="h-[300px]">
+            <canvas id="salesChart"></canvas>
+        </div>
     </div>
 
-    <div class="graph-card">
-        <h2>Chiffre d'affaires mensuel</h2>
-        <canvas id="revenueChart"></canvas>
+    <div class="bg-white p-6 rounded-xl shadow">
+        <h2 class="font-semibold mb-4">Chiffre d'affaires mensuel (12 derniers mois)</h2>
+        <div class="h-[300px]">
+            <canvas id="revenueChart"></canvas>
+        </div>
     </div>
 
 </div>
 
 @endsection
 
-@section('styles')
-<style>
-.graph-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-}
-
-.graph-card {
-    background: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    flex: 1 1 400px;
-    min-width: 300px;
-}
-
-.graph-card h2 {
-    margin-bottom: 10px;
-    font-size: 1.2rem;
-}
-
-canvas {
-    max-height: 300px;
-}
-</style>
-@endsection
-
 @section('scripts')
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    // Safely handle empty arrays
-    const productsByTypeLabels = @json($productsByTypeLabels ?? []);
-    const productsByTypeData   = @json($productsByTypeData ?? []);
+    Chart.register(ChartDataLabels);
+
+    const productsByTypeLabels   = @json($productsByTypeLabels ?? []);
+    const productsByTypeData     = @json($productsByTypeData ?? []);
 
     const productsByRegionLabels = @json($productsByRegionLabels ?? []);
     const productsByRegionData   = @json($productsByRegionData ?? []);
 
-    const salesLabels   = @json($monthlySalesLabels ?? []);
-    const salesData     = @json($monthlySalesData ?? []);
-    const revenueData   = @json($monthlySalesAmount ?? []);
+    const months      = @json($months ?? []);
+    const salesData   = @json($monthlySalesData ?? []);
+    const revenueData = @json($monthlyRevenueData ?? []);
 
-    // Products by type (Bar)
-    new Chart(document.getElementById('productsChart'), {
-        type: 'bar',
-        data: {
-            labels: productsByTypeLabels,
-            datasets: [{
-                data: productsByTypeData,
-                backgroundColor: 'rgba(34,197,94,0.7)'
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
+    const baseOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: { beginAtZero: true }
         }
-    });
+    };
 
-    // Products by region (Pie)
-    new Chart(document.getElementById('productsRegionChart'), {
-        type: 'pie',
-        data: {
-            labels: productsByRegionLabels,
-            datasets: [{
-                data: productsByRegionData,
-                backgroundColor: ['#22c55e','#3b82f6','#f59e0b','#ef4444','#8b5cf6']
-            }]
-        },
-        options: { responsive: true }
-    });
+    if (productsByTypeLabels.length) {
+        new Chart(document.getElementById('productsChart'), {
+            type: 'bar',
+            data: {
+                labels: productsByTypeLabels,
+                datasets: [{
+                    data: productsByTypeData,
+                    backgroundColor: 'rgba(34,197,94,0.7)',
+                }]
+            },
+            options: baseOptions
+        });
+    }
 
-    // Monthly sales (Line)
-    new Chart(document.getElementById('salesChart'), {
-        type: 'line',
-        data: {
-            labels: salesLabels,
-            datasets: [{
-                label: 'Quantité vendue',
-                data: salesData,
-                borderColor: 'rgba(59,130,246,1)',
-                tension: 0.4,
-                fill: false
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true } }
-        }
-    });
+    if (productsByRegionLabels.length) {
+        new Chart(document.getElementById('productsRegionChart'), {
+            type: 'pie',
+            data: {
+                labels: productsByRegionLabels,
+                datasets: [{ data: productsByRegionData }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
 
-    // Monthly revenue (Line)
-    new Chart(document.getElementById('revenueChart'), {
-        type: 'line',
-        data: {
-            labels: salesLabels,
-            datasets: [{
-                label: 'Chiffre d\'affaires (KMF)',
-                data: revenueData,
-                borderColor: 'rgba(234,88,12,1)',
-                backgroundColor: 'rgba(234,88,12,0.2)',
-                fill: true,
-                tension: 0.4
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true } }
-        }
-    });
+    if (months.length) {
+        new Chart(document.getElementById('salesChart'), {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: 'Quantité vendue',
+                    data: salesData,
+                    borderColor: '#3b82f6',
+                    tension: 0.4
+                }]
+            },
+            options: baseOptions
+        });
 
+        new Chart(document.getElementById('revenueChart'), {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: 'Chiffre d\'affaires (KMF)',
+                    data: revenueData,
+                    borderColor: '#ea580c',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: baseOptions
+        });
+    }
 });
 </script>
 @endsection
