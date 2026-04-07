@@ -19,46 +19,41 @@ class ReportController extends Controller
 {
     /**
      * Reports dashboard
-         */
-public function index()
-{
-    $employees = Employee::with('bank')->get();
-    $banks = Bank::all();
+     */
+    public function index()
+    {
+        $employees = Employee::with('bank')->get();
+        $banks = Bank::all();
 
-    // Get distinct months from payments (YYYY-MM)
-    $availableMonths = Payment::select('month')
-        ->whereNotNull('month')
-        ->where('month', '!=', '')
-        ->distinct()
-        ->orderByDesc('month')
-        ->pluck('month')
-        ->filter()
-        ->values();
+        $availableMonths = Payment::select('month')
+            ->whereNotNull('month')
+            ->where('month', '!=', '')
+            ->distinct()
+            ->orderByDesc('month')
+            ->pluck('month')
+            ->filter()
+            ->values();
 
-    $months = [];
-    foreach ($availableMonths as $ym) {
-        try {
-            $months[$ym] = ucfirst(
-                Carbon::createFromFormat('Y-m', $ym)
-                    ->locale('fr')
-                    ->translatedFormat('F Y')
-            );
-        } catch (\Exception $e) {
-            // skip invalid formats
+        $months = [];
+        foreach ($availableMonths as $ym) {
+            try {
+                $months[$ym] = ucfirst(
+                    Carbon::createFromFormat('Y-m', $ym)
+                        ->locale('fr')
+                        ->translatedFormat('F Y')
+                );
+            } catch (\Exception $e) {}
         }
+
+        if (empty($months)) {
+            $currentMonth = Carbon::now()->format('Y-m');
+            $months[$currentMonth] = ucfirst(
+                Carbon::now()->locale('fr')->translatedFormat('F Y')
+            );
+        }
+
+        return view('admin.reports', compact('employees', 'banks', 'months'));
     }
-
-    // If no months in DB, fallback to current month
-    if (empty($months)) {
-        $currentMonth = Carbon::now()->format('Y-m');
-        $months[$currentMonth] = ucfirst(
-            Carbon::now()->locale('fr')->translatedFormat('F Y')
-        );
-    }
-
-    return view('admin.reports', compact('employees', 'banks', 'months'));
-}
-
 
     /**
      * Generate employee payslip
@@ -85,13 +80,22 @@ public function index()
 
         $salary = $employee->salary;
 
-        $igr = match (true) {
-            $salary <= 70000  => 2000,
-            $salary <= 80000  => 3000,
-            $salary <= 100000 => 4000,
-            $salary <= 110000 => 5000,
-            default           => 10000,
-        };
+        // ✅ NEW IGR CALCULATION
+        if ($salary <= 70000) {
+            $igr = ($salary * 0.025) - 350;
+        } elseif ($salary <= 85000) {
+            $igr = ($salary * 0.035) - 425;
+        } elseif ($salary <= 110000) {
+            $igr = ($salary * 0.045) - 500;
+        } elseif ($salary <= 250000) {
+            $igr = ($salary * 0.08);
+        } elseif ($salary <= 300000) {
+            $igr = ($salary * 0.11) - 1510;
+        } else {
+            $igr = ($salary * 0.15) - 2633;
+        }
+
+        $igr = max(0, $igr); // safety
 
         $total = ($salary + $payment->bonus) - $igr;
 
@@ -195,7 +199,7 @@ public function index()
         $monthLabel = ucfirst($date->translatedFormat('F Y'));
 
         $pdf = PDF::loadView('admin.reports.depenses-pdf', [
-            'depenses'     => $depenses,
+            'depenses'    => $depenses,
             'totalAmount' => $totalAmount,
             'monthLabel'  => $monthLabel,
         ]);

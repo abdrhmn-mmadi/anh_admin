@@ -5,7 +5,7 @@
     <title>Liste Complète des Paiements - {{ $month }}</title>
     <style>
         @page {
-            margin: 30px 20px 120px 20px; /* added extra bottom margin for signature */
+            margin: 30px 20px 120px 20px;
         }
 
         body {
@@ -95,7 +95,7 @@
 
 <header>
     <img src="{{ public_path('photos/entete.png') }}" class="header-image" alt="Header Image">
-    <h2>Liste Complète des Paiements</h2>
+    <h2>Salaire du mois de: </h2>
     @php
         $monthNumber = \Carbon\Carbon::parse($month)->format('m');
         $year = \Carbon\Carbon::parse($month)->format('Y');
@@ -112,12 +112,12 @@
             }
         }
     @endphp
-    <p>Mois : {{ $monthName }} {{ $year }}</p>
+    <p> <strong>{{ $monthName }} {{ $year }}</strong></p>
 </header>
 
 <footer>
-   <i>Rue de la COI, Coulée-Yéménia, Moroni, Union des Comores. Tél : +269 733 25 82.</i><br>
-   <i>E-mail : contact@anh.km. Site web : https://anh.km</i>
+   <i>Rue de la COI, Coulée-Yéménia, Moroni, Union des Comores. Tél : +269 733 25 82.</i><br>
+   <i>E-mail : contact@anh.km. Site web : https://anh.km</i>
 </footer>
 
 <div class="content">
@@ -129,7 +129,7 @@
                 <th>Matricule</th>
                 <th>Banque / IBG</th>
                 <th>Salaire (KMF)</th>
-                <th>Bonus (KMF)</th>
+                <th>Indemnité (KMF)</th>
                 <th>Indice</th>
                 <th>Net à Payer (KMF)</th>
             </tr>
@@ -141,21 +141,32 @@
                     $salary = $payment->employee->salary;
                     $bonus = $payment->bonus;
 
-                    $igr = match(true) {
-                        $salary <= 70000 => 2000,
-                        $salary <= 80000 => 3000,
-                        $salary <= 100000 => 4000,
-                        $salary <= 110000 => 5000,
-                        default => 10000,
-                    };
+                    // Updated IGR + Indice logic
+                    $igr = 0;
+                    $indice = 0;
 
-                    $indice = match(true) {
-                        $salary <= 70000 => 100,
-                        $salary <= 80000 => 200,
-                        $salary <= 100000 => 300,
-                        $salary <= 110000 => 400,
-                        default => 500,
-                    };
+                    if ($salary <= 70000) {
+                        $igr = ($salary * 0.025) + 350;
+                        $indice = 350;
+                    } elseif ($salary <= 85000) {
+                        $igr = ($salary * 0.035) + 425;
+                        $indice = 425;
+                    } elseif ($salary <= 110000) {
+                        $igr = ($salary * 0.045) + 500;
+                        $indice = 500;
+                    } elseif ($salary <= 250000) {
+                        $igr = ($salary * 0.08);
+                        $indice = 0;
+                    } elseif ($salary <= 300000) {
+                        $igr = ($salary * 0.11) + 1510;
+                        $indice = 1510;
+                    } else {
+                        $igr = ($salary * 0.15) + 2633;
+                        $indice = 2633;
+                    }
+
+                    // Round IGR
+                    $igr = round($igr);
 
                     $net = ($salary + $bonus) - $igr;
                     $grandTotal += $net;

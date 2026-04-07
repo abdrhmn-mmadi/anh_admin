@@ -5,7 +5,7 @@
     <title>Liste Paiements - {{ $bank->name }} - {{ $month }}</title>
     <style>
         @page {
-            margin: 30px 20px 100px 20px; /* top right bottom left */
+            margin: 30px 20px 100px 20px;
         }
 
         body {
@@ -105,8 +105,8 @@
 </header>
 
 <footer>
-   <i>Rue de la COI, Coulée-Yéménia, Moroni, Union des Comores. Tél : +269 733 25 82.</i><br>
-   <i>E-mail : contact@anh.km. Site web : https://anh.km</i>
+   <i>Rue de la COI, Coulée-Yéménia, Moroni, Union des Comores. Tél : +269 733 25 82.</i><br>
+   <i>E-mail : contact@anh.km. Site web : https://anh.km</i>
 </footer>
 
 <div class="content">
@@ -121,20 +121,34 @@
             </tr>
         </thead>
         <tbody>
-            @php 
+            @php
                 $grandTotal = 0;
                 $counter = 1;
             @endphp
             @foreach($payments as $payment)
                 @php
                     $employeeSalary = $payment->employee->salary;
-                    $igr = match(true) {
-                        $employeeSalary <= 70000 => 2000,
-                        $employeeSalary <= 80000 => 3000,
-                        $employeeSalary <= 100000 => 4000,
-                        $employeeSalary <= 110000 => 5000,
-                        default => 10000,
-                    };
+
+                    // Updated IGR logic
+                    $igr = 0;
+
+                    if ($employeeSalary <= 70000) {
+                        $igr = ($employeeSalary * 0.025) + 350;
+                    } elseif ($employeeSalary <= 85000) {
+                        $igr = ($employeeSalary * 0.035) + 425;
+                    } elseif ($employeeSalary <= 110000) {
+                        $igr = ($employeeSalary * 0.045) + 500;
+                    } elseif ($employeeSalary <= 250000) {
+                        $igr = ($employeeSalary * 0.08);
+                    } elseif ($employeeSalary <= 300000) {
+                        $igr = ($employeeSalary * 0.11) + 1510;
+                    } else {
+                        $igr = ($employeeSalary * 0.15) + 2633;
+                    }
+
+                    // Round IGR
+                    $igr = round($igr);
+
                     $net = ($employeeSalary + $payment->bonus) - $igr;
                     $grandTotal += $net;
 

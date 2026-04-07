@@ -37,7 +37,7 @@
 
             <!-- Accueil -->
             <a href="{{ route('manager.dashboard') }}"
-               class="flex items-center gap-3 py-2 px-4 rounded-lg 
+               class="flex items-center gap-3 py-2 px-4 rounded-lg
                       {{ request()->routeIs('manager.dashboard') ? 'bg-green-500' : 'hover:bg-green-500' }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"
                      viewBox="0 0 24 24">
@@ -49,7 +49,7 @@
 
             <!-- Employés -->
             <a href="{{ route('manager.employees') }}"
-               class="flex items-center gap-3 py-2 px-4 rounded-lg 
+               class="flex items-center gap-3 py-2 px-4 rounded-lg
                       {{ request()->routeIs('manager.employees') ? 'bg-green-500' : 'hover:bg-green-500' }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"
                      viewBox="0 0 24 24">
@@ -61,7 +61,7 @@
 
             <!-- Produits -->
             <a href="{{ route('manager.products') }}"
-               class="flex items-center gap-3 py-2 px-4 rounded-lg 
+               class="flex items-center gap-3 py-2 px-4 rounded-lg
                       {{ request()->routeIs('manager.products') ? 'bg-green-500' : 'hover:bg-green-500' }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"
                      viewBox="0 0 24 24">
@@ -73,7 +73,7 @@
 
             <!-- Ventes -->
             <a href="{{ route('manager.sales.index') }}"
-               class="flex items-center gap-3 py-2 px-4 rounded-lg 
+               class="flex items-center gap-3 py-2 px-4 rounded-lg
                       {{ request()->routeIs('manager.sales.*') ? 'bg-green-500' : 'hover:bg-green-500' }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"
                      viewBox="0 0 24 24">
@@ -87,7 +87,7 @@
 
             <!-- Profil -->
             <a href="{{ route('manager.profile') }}"
-               class="flex items-center gap-3 py-2 px-4 rounded-lg 
+               class="flex items-center gap-3 py-2 px-4 rounded-lg
                       {{ request()->routeIs('manager.profile') ? 'bg-green-500' : 'hover:bg-green-500' }}">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"
                      viewBox="0 0 24 24">
@@ -112,7 +112,7 @@
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
-                    Logout
+                    Déconnexion
                 </button>
             </form>
         </header>

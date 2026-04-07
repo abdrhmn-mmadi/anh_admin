@@ -3,226 +3,160 @@
 @section('page-title', 'Paiements')
 
 @section('content')
-<div x-data="paymentsPage()" class="space-y-6">
+<div x-data="paymentsPage()" x-init="init()" class="space-y-6">
 
-    <!-- ACTION BUTTONS -->
+    <!-- FILTERS -->
     <div class="flex gap-3 flex-wrap justify-between items-center">
-        <div class="flex gap-3 flex-wrap">
+
+        <div class="flex gap-3 flex-wrap items-center">
+
+            <!-- New Payment -->
             <button @click="openForm()"
                     class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow">
                 + Nouveau Paiement
             </button>
 
+            <!-- Pay All -->
             <button @click="showPayAll = true"
                     class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow">
-                💰 Payer Tous les Employés
+                💰 Payer Tous
             </button>
-        </div>
 
-        <button @click="showFilters = !showFilters"
-                class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded shadow">
-            🔍 Filtres & Recherche
-        </button>
-    </div>
+            <!-- 🔍 Live Search -->
+            <input type="text"
+                   x-model.debounce.500ms="tableSearch"
+                   @input="applyFilters"
+                   placeholder="Nom, NIN..."
+                   class="border rounded p-2">
 
-    <!-- FILTERS MODAL -->
-    <div x-cloak x-show="showFilters" x-transition
-         class="bg-white border rounded shadow p-6 space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <!-- Region Filter -->
-            <div>
-                <label class="text-sm font-medium block mb-1">Région</label>
-                <select x-model="filterRegion" @change="applyFilters()" class="w-full border rounded p-2">
-                    <option value="">Toutes</option>
-                    @foreach($regions as $region)
-                        <option value="{{ $region->id }}" {{ request('region')==$region->id?'selected':'' }}>
-                            {{ $region->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+            <!-- 📍 Region -->
+            <select x-model="region" @change="applyFilters" class="border rounded p-2">
+                <option value="">Toutes Régions</option>
+                @foreach($regions as $r)
+                    <option value="{{ $r->id }}" {{ request('region') == $r->id ? 'selected' : '' }}>
+                        {{ $r->name }}
+                    </option>
+                @endforeach
+            </select>
 
-            <!-- Month Filter -->
-            <div>
-                <label class="text-sm font-medium block mb-1">Mois</label>
-                <select x-model="filterMonth" @change="applyFilters()" class="w-full border rounded p-2">
-                    <option value="">Tous</option>
-                    @foreach($months as $num => $label)
-                        <option value="{{ $num }}" {{ request('month')==$num?'selected':'' }}>
-                            {{ $label }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+            <!-- 📅 Month -->
+            <select x-model="month" @change="applyFilters" class="border rounded p-2">
+                @foreach($availableMonths as $m)
+                    <option value="{{ $m }}" {{ $selectedMonth == $m ? 'selected' : '' }}>
+                        {{ \Carbon\Carbon::createFromFormat('Y-m', $m)->format('F Y') }}
+                    </option>
+                @endforeach
+            </select>
 
-            <!-- Search Filter -->
-            <div>
-                <label class="text-sm font-medium block mb-1">Rechercher</label>
-                <input type="text" x-model="tableSearch" @keydown.enter="applyFilters()" placeholder="Nom ou Matricule..." 
-                       class="w-full border rounded p-2">
-            </div>
-
-            <!-- Reset Filters -->
-            <div>
-                <button @click="resetFilters()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded w-full">
-                    Réinitialiser
-                </button>
-            </div>
         </div>
     </div>
 
     <!-- SINGLE PAYMENT FORM MODAL -->
-    <div x-cloak x-show="showForm" x-transition
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div x-cloak x-show="showForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white w-full max-w-lg rounded shadow p-6 overflow-y-auto max-h-[90vh]">
+
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-semibold" x-text="editMode ? 'Modifier Paiement' : 'Nouveau Paiement'"></h2>
                 <button @click="closeForm()" class="text-2xl font-bold">&times;</button>
             </div>
 
-            <form :action="editMode ? editUrl : '{{ route('admin.payments.store') }}'" method="POST" class="space-y-4">
+            <form :action="editMode ? editUrl : '{{ route('admin.payments.store') }}'" method="POST">
                 @csrf
                 <template x-if="editMode">
                     <input type="hidden" name="_method" value="PUT">
                 </template>
 
-                <!-- Matricule / Name Search -->
-                <div x-show="!editMode" class="space-y-2 relative">
-                    <label class="text-sm font-medium">Matricule ou Nom Employé</label>
-                    <input type="text" x-model="search" @input.debounce.300ms="searchEmployee" placeholder="Ex: 0121758 ou Nom..." 
-                           class="w-full border rounded p-2">
+                <!-- Employee search -->
+                <input type="text" x-model="search" @input.debounce.300ms="searchEmployee"
+                       placeholder="Chercher employé..."
+                       class="w-full border rounded p-2 mb-2">
 
-                    <div x-cloak x-show="suggestions.length > 0" class="absolute z-50 w-full bg-white border rounded shadow mt-1 max-h-40 overflow-y-auto">
-                        <template x-for="item in suggestions" :key="item.id">
-                            <div @click="selectEmployee(item)" class="px-3 py-2 hover:bg-gray-100 cursor-pointer">
-                                <span x-text="item.nin"></span> - <span x-text="item.name"></span>
-                            </div>
-                        </template>
-                    </div>
+                <div x-show="suggestions.length" class="border rounded bg-white max-h-40 overflow-y-auto">
+                    <template x-for="item in suggestions" :key="item.id">
+                        <div @click="selectEmployee(item)"
+                             class="p-2 hover:bg-gray-100 cursor-pointer">
+                            <span x-text="item.name"></span>
+                        </div>
+                    </template>
                 </div>
 
-                <!-- Selected Employee Info -->
-                <div x-show="employee.name" class="text-gray-700">
-                    <strong>Nom :</strong> <span x-text="employee.name"></span>
-                </div>
+                <input type="hidden" name="employee_id" x-model="employee.id">
 
-                <input type="hidden" name="employee_id" x-model="employee.id" required>
-                <input type="hidden" name="bank_id" x-model="employee.bank_id" required>
-
-                <div x-show="employee.bank_name" class="text-gray-700">
-                    <label class="text-sm font-medium">Banque</label>
-                    <div class="p-2 border rounded bg-gray-100" x-text="employee.bank_name"></div>
-                </div>
-
-                <!-- Month Selection -->
-                <div>
-                    <label class="text-sm font-medium">Mois</label>
-                    <select name="month" x-model="employee.month" class="w-full border rounded p-2" required>
-                        <!-- Dynamically generate the months -->
-                        <template x-for="month in monthsList" :key="month.value">
-                            <option :value="month.value" x-text="month.label"></option>
-                        </template>
-                    </select>
-                </div>
-
-                <!-- Salary, Bonus, IGR -->
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <label class="text-sm font-medium">Salaire</label>
-                        <input type="number" class="w-full bg-gray-100 border rounded p-2" x-model="employee.salary" readonly>
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium">Bonus</label>
-                        <input type="number" name="bonus" x-model="bonus" @input="calculateTotal" min="0" step="0.01" class="w-full border rounded p-2">
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium">IGR</label>
-                        <input type="number" name="igr" class="w-full bg-gray-100 border rounded p-2" x-model="igr" readonly>
-                    </div>
-                </div>
-
-                <!-- Total Payment -->
-                <div>
-                    <label class="text-sm font-medium">Total à payer</label>
-                    <input type="number" name="total_amount" class="w-full bg-gray-100 border rounded p-2" x-model="total" readonly>
-                </div>
-
-                <!-- Payment Date -->
-                <div>
-                    <label class="text-sm font-medium">Date de paiement</label>
-                    <input type="date" name="payment_date" x-model="employee.payment_date" class="w-full border rounded p-2" required>
-                </div>
-
-                <input type="hidden" name="payment_type" value="Salary">
-
-                <button class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded shadow" x-text="editMode ? 'Mettre à jour' : 'Payer'"></button>
-            </form>
-        </div>
-    </div>
-
-    <!-- PAY ALL EMPLOYEES MODAL -->
-    <div x-cloak x-show="showPayAll" x-transition
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white w-full max-w-md rounded shadow p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-semibold">Payer Tous les Employés</h2>
-                <button @click="showPayAll = false" class="text-2xl font-bold">&times;</button>
-            </div>
-
-            <form method="POST" action="{{ route('admin.payments.payAll') }}">
-                @csrf
-                <label class="text-sm font-medium">Mois de paiement</label>
-                <select name="month" class="w-full mb-4 border rounded p-2" required>
-                    <template x-for="month in monthsList" :key="month.value">
+                <!-- Month -->
+                <select name="month" x-model="employee.month" class="w-full border rounded p-2 mt-3" required>
+                    <template x-for="month in monthsList">
                         <option :value="month.value" x-text="month.label"></option>
                     </template>
                 </select>
-                <button class="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded shadow">Payer Tous</button>
+
+                <!-- Bank -->
+                <select name="bank_id" x-model="employee.bank_id" class="w-full border rounded p-2 mt-2" required>
+                    <option value="" disabled>Choisir la banque</option>
+                    @foreach($banks as $bank)
+                        <option value="{{ $bank->id }}" :selected="employee.bank_id == {{ $bank->id }}">
+                            {{ $bank->name }}
+                        </option>
+                    @endforeach
+                </select>
+
+                <!-- Salary -->
+                <input type="number" x-model="employee.salary" readonly class="w-full mt-2 border p-2">
+
+                <!-- Bonus -->
+                <input type="number" name="bonus" x-model="bonus" @input="calculateTotal"
+                       class="w-full mt-2 border p-2">
+
+                <!-- Total -->
+                <input type="number" name="total_amount" x-model="total" readonly
+                       class="w-full mt-2 border p-2">
+
+                <!-- Date -->
+                <input type="date" name="payment_date" x-model="employee.payment_date"
+                       class="w-full mt-2 border p-2">
+
+                <input type="hidden" name="payment_type" value="Salary">
+
+                <button class="w-full bg-green-600 text-white py-2 mt-3 rounded">
+                    Enregistrer
+                </button>
             </form>
         </div>
     </div>
 
-    <!-- PAYMENTS TABLE -->
+    <!-- TABLE -->
     <div class="bg-white p-6 rounded shadow overflow-x-auto">
-        <table class="w-full text-sm border-collapse">
+        <table class="w-full text-sm">
             <thead class="bg-gray-100">
                 <tr>
-                    <th class="p-2 text-left">Employé</th>
-                    <th class="p-2 text-left">Région</th>
-                    <th class="p-2 text-left">Banque</th>
-                    <th class="p-2 text-left">Indemnité</th>
-                    <th class="p-2 text-left">IGR</th>
-                    <th class="p-2 text-left">Total</th>
-                    <th class="p-2 text-left">Date</th>
-                    <th class="p-2 text-left">Actions</th>
+                    <th class="p-2">Employé</th>
+                    <th class="p-2">Région</th>
+                    <th class="p-2">Banque</th>
+                    <th class="p-2">Indemnité</th>
+                    <th class="p-2">IGR</th>
+                    <th class="p-2">Total</th>
+                    <th class="p-2">Date</th>
+                    <th class="p-2">Actions</th>
                 </tr>
             </thead>
+
             <tbody>
                 <template x-for="p in payments" :key="p.id">
                     <tr class="border-t">
-                        <td class="p-2">
-                            <span x-text="p.employee.first_name + ' ' + p.employee.last_name"></span>
-                            <div class="text-xs text-gray-500" x-text="p.employee.nin"></div>
-                        </td>
+                        <td class="p-2" x-text="p.employee.first_name + ' ' + p.employee.last_name"></td>
                         <td class="p-2" x-text="p.employee.region ? p.employee.region.name : '-'"></td>
                         <td class="p-2" x-text="p.employee.bank.name"></td>
-                        <td class="p-2" x-text="parseFloat(p.bonus).toFixed(2)"></td>
-                        <td class="p-2" x-text="calculateIGR(p.employee.salary).toFixed(2)"></td>
-                        <td class="p-2 font-semibold" x-text="(parseFloat(p.employee.salary) + parseFloat(p.bonus) - calculateIGR(p.employee.salary)).toFixed(2)"></td>
+                        <td class="p-2" x-text="p.bonus"></td>
+                        <td class="p-2" x-text="calculateIGR(p.employee.salary)"></td>
+                        <td class="p-2 font-bold"
+                            x-text="(parseFloat(p.employee.salary) + parseFloat(p.bonus) - calculateIGR(p.employee.salary))">
+                        </td>
                         <td class="p-2" x-text="p.payment_date"></td>
                         <td class="p-2 flex gap-2">
-                            <button type="button"
-                                    @click="editPayment(p)"
-                                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded">
-                                Edit
-                            </button>
+                            <button @click="editPayment(p)" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded">✏️</button>
                             <form :action="`/admin/payments/${p.id}`" method="POST" @submit.prevent="if(confirm('Voulez-vous supprimer ce paiement ?')) $el.submit()">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit"
-                                        class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">
-                                    Delete
-                                </button>
+                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">🗑️</button>
                             </form>
                         </td>
                     </tr>
@@ -230,20 +164,9 @@
             </tbody>
         </table>
 
-        <div class="flex justify-between items-center mt-4">
-            <div>
-                {{ $payments->links() }}
-            </div>
-            <div>
-                <label class="text-sm font-medium mr-2">Afficher par :</label>
-                <select x-model="perPage" @change="applyFilters()" class="border rounded p-1">
-                    <option value="10" {{ request('per_page')==10?'selected':'' }}>10</option>
-                    <option value="20" {{ request('per_page')==20?'selected':'' }}>20</option>
-                    <option value="50" {{ request('per_page')==50?'selected':'' }}>50</option>
-                    <option value="100" {{ request('per_page')==100?'selected':'' }}>100</option>
-                    <option value="200" {{ request('per_page')==200?'selected':'' }}>200</option>
-                </select>
-            </div>
+        <!-- Pagination -->
+        <div class="mt-4">
+            {{ $payments->links() }}
         </div>
     </div>
 
@@ -254,88 +177,99 @@ function paymentsPage() {
     return {
         showForm: false,
         showPayAll: false,
-        showFilters: false,
-        tableSearch: '{{ request("search") }}',
-        filterRegion: '{{ request("region") }}',
-        filterMonth: '{{ request("month") }}',
-        perPage: {{ request('per_page', 10) }},
-
         editMode: false,
         editUrl: '',
-        search: '',
-        employee: { id: '', name: '', salary: 0, bank_name: '', bank_id: '', month: '', payment_date: '' },
+
+        tableSearch: '{{ request("search") }}',
+        perPage: {{ request('per_page', 10) }},
+        region: '{{ request("region") }}',
+        month: '{{ $selectedMonth }}',
+
+        employee: { id: '', salary: 0, month: '', payment_date: '', bank_id: '' },
         bonus: 0,
-        igr: 0,
         total: 0,
         suggestions: [],
-
-        monthsList: [],
+        search: '',
         payments: @json($paymentsJson),
 
+        monthsList: [],
+
         init() {
-            this.generateMonthOptions(); // <-- populate months on page load
+            this.generateMonths();
         },
 
-        openForm() { 
-            this.showForm = true; 
-            this.editMode = false; 
-            this.resetForm(); 
-        },
-
-        closeForm() { 
-            this.showForm = false; 
-            this.editMode = false; 
-            this.resetForm(); 
-        },
-
-        resetForm() { 
-            this.employee = { id: '', name: '', salary: 0, bank_name: '', bank_id: '', month: '', payment_date: '' }; 
-            this.bonus = 0; 
-            this.igr = 0; 
-            this.total = 0; 
-            this.search = ''; 
-            this.suggestions = []; 
-        },
-
-        generateMonthOptions() {
-            let months = [];
+        generateMonths() {
             let now = new Date();
-
-            // If current month is Jan–Mar → fiscal year started last year
-            let fiscalYearStart =
-                now.getMonth() < 3
-                    ? new Date(now.getFullYear() - 1, 3, 1) // April last year
-                    : new Date(now.getFullYear(), 3, 1);    // April this year
-
             for (let i = 0; i < 12; i++) {
-                let m = new Date(
-                    fiscalYearStart.getFullYear(),
-                    fiscalYearStart.getMonth() + i,
-                    1
-                );
-
-                months.push({
-                    value: m.getMonth() + 1,
-                    label: m.toLocaleString('fr-FR', {
-                        month: 'long',
-                        year: 'numeric'
-                    })
+                let d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                this.monthsList.push({
+                    value: d.toISOString().slice(0, 7),
+                    label: d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })
                 });
             }
-
-            this.monthsList = months;
         },
 
-        editPayment(payment){
+        applyFilters() {
+            let params = new URLSearchParams();
+
+            if (this.tableSearch) params.set('search', this.tableSearch);
+            if (this.region) params.set('region', this.region);
+            if (this.month) params.set('month', this.month);
+            if (this.perPage) params.set('per_page', this.perPage);
+
+            window.location.href = '?' + params.toString();
+        },
+
+        openForm() {
+            this.showForm = true;
+            this.editMode = false;
+            this.employee = { id: '', salary: 0, month: '', payment_date: '', bank_id: '' };
+            this.bonus = 0;
+            this.total = 0;
+        },
+
+        closeForm() {
+            this.showForm = false;
+            this.editMode = false;
+            this.employee = { id: '', salary: 0, month: '', payment_date: '', bank_id: '' };
+            this.bonus = 0;
+            this.total = 0;
+        },
+
+        searchEmployee() {
+            fetch("{{ route('admin.payments.searchEmployee') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ query: this.search })
+            })
+            .then(res => res.json())
+            .then(data => this.suggestions = data.employees || []);
+        },
+
+        selectEmployee(emp) {
+            this.employee = {
+                id: emp.id,
+                salary: emp.salary,
+                bank_id: emp.bank ? emp.bank.id : '',
+                month: '',
+                payment_date: ''
+            };
+            this.suggestions = [];
+            this.calculateTotal();
+        },
+
+        editPayment(payment) {
             this.showForm = true;
             this.editMode = true;
             this.editUrl = `/admin/payments/${payment.id}`;
+
             this.employee = {
                 id: payment.employee_id,
-                name: payment.employee.first_name + ' ' + payment.employee.last_name,
                 salary: payment.employee.salary,
-                bank_name: payment.employee.bank.name,
-                bank_id: payment.employee.bank.id,
+                bank_id: payment.bank_id || (payment.employee.bank ? payment.employee.bank.id : ''),
                 month: payment.month,
                 payment_date: payment.payment_date
             };
@@ -343,69 +277,22 @@ function paymentsPage() {
             this.calculateTotal();
         },
 
-        searchEmployee(){
-            if(this.search.length < 1){ 
-                this.suggestions = []; 
-                return; 
-            }
-            fetch("{{ route('admin.payments.searchEmployee') }}", {
-                method:'POST',
-                headers:{ 
-                    'Content-Type':'application/json', 
-                    'X-CSRF-TOKEN':'{{ csrf_token() }}' 
-                },
-                body: JSON.stringify({ query: this.search })
-            })
-            .then(res => res.json())
-            .then(data => {
-                this.suggestions = data.status ? data.employees : [];
-            });
-        },
-
-        selectEmployee(emp){
-            this.employee = {
-                id: emp.id,
-                name: emp.name,
-                salary: emp.salary,
-                bank_name: emp.bank_name,
-                bank_id: emp.bank_id,
-                month: emp.month,
-                payment_date: emp.payment_date
-            };
-            this.suggestions = [];
-            this.calculateTotal();
-        },
-
         calculateIGR(salary){
-            if(salary <= 70000) return 2000;
-            if(salary <= 80000) return 3000;
-            if(salary <= 100000) return 4000;
-            if(salary <= 110000) return 5000;
-            return 10000;
+            salary = parseFloat(salary || 0);
+            if (salary <= 70000) return (salary * 0.025) + 350;
+            if (salary <= 85000) return (salary * 0.035) + 425;
+            if (salary <= 110000) return (salary * 0.045) + 500;
+            if (salary <= 250000) return (salary * 0.08);
+            if (salary <= 300000) return (salary * 0.11) + 1510;
+            return (salary * 0.15) + 2633;
         },
 
         calculateTotal(){
-            this.igr = this.calculateIGR(parseFloat(this.employee.salary || 0));
-            this.total = (parseFloat(this.employee.salary || 0) + parseFloat(this.bonus || 0)) - this.igr;
-        },
-
-        applyFilters(){
-            let params = new URLSearchParams();
-            if(this.filterRegion) params.set('region', this.filterRegion);
-            if(this.filterMonth) params.set('month', this.filterMonth);
-            if(this.tableSearch) params.set('search', this.tableSearch);
-            if(this.perPage) params.set('per_page', this.perPage);
-            window.location.href = '?' + params.toString();
-        },
-
-        resetFilters(){
-            this.filterRegion = '';
-            this.filterMonth = '';
-            this.tableSearch = '';
-            this.perPage = 10;
-            this.applyFilters();
+            let igr = this.calculateIGR(this.employee.salary);
+            this.total = (parseFloat(this.employee.salary || 0) + parseFloat(this.bonus || 0)) - igr;
         }
     }
 }
 </script>
+
 @endsection

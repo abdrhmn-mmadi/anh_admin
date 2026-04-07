@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Employee extends Model
 {
@@ -12,7 +13,7 @@ class Employee extends Model
     protected $fillable = [
         'first_name',
         'last_name',
-        'sex', // added
+        'sex',
         'dob',
         'address',
         'email',
@@ -27,8 +28,36 @@ class Employee extends Model
         'position',
         'contract_type',
         'date_recruited',
+        // ❌ DO NOT add matricule here (auto-generated)
     ];
 
+    /**
+     * Boot method to auto-generate matricule
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($employee) {
+
+            DB::transaction(function () use ($employee) {
+
+                $lastMatricule = self::lockForUpdate()
+                    ->orderBy('id', 'desc')
+                    ->value('matricule');
+
+                if ($lastMatricule) {
+                    // Get last 3 digits
+                    $lastNumber = (int) substr($lastMatricule, -3);
+                    $nextNumber = $lastNumber + 1;
+                } else {
+                    $nextNumber = 1;
+                }
+
+                $employee->matricule = 'ANH-KM-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+            });
+        });
+    }
 
     /* =====================
        Relationships

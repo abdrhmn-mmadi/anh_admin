@@ -18,50 +18,43 @@ class EmployeeController extends Controller
     {
         $query = Employee::with(['bank', 'region', 'department', 'service']);
 
-        // Search by NIN, first name, or last name
+        // Search
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('nin', 'like', "%$search%")
+                $q->where('matricule', 'like', "%$search%")   // ✅ Added matricule
+                  ->orWhere('nin', 'like', "%$search%")
                   ->orWhere('first_name', 'like', "%$search%")
                   ->orWhere('last_name', 'like', "%$search%");
             });
         }
 
-        // Filter by region
+        // Filters
         if ($request->filled('region_id')) {
             $query->where('region_id', $request->region_id);
         }
 
-        // Filter by department
         if ($request->filled('department_id')) {
             $query->where('department_id', $request->department_id);
         }
 
-        // Filter by contract type
         if ($request->filled('contract_type')) {
             $query->where('contract_type', $request->contract_type);
         }
 
-        // ✅ PAGINATION (20 default)
         $perPage = $request->get('per_page', 20);
         $employees = $query->paginate($perPage)->withQueryString();
 
-        $banks = Bank::all();
-        $regions = Region::all();
-        $departments = Department::all();
-        $services = Service::all();
-
-        return view('admin.employees', compact(
-            'employees',
-            'banks',
-            'regions',
-            'departments',
-            'services'
-        ));
+        return view('admin.employees', [
+            'employees'   => $employees,
+            'banks'       => Bank::all(),
+            'regions'     => Region::all(),
+            'departments' => Department::all(),
+            'services'    => Service::all(),
+        ]);
     }
 
-    // ✅ EXPORT EXCEL WITH FILTERS
+    // ✅ EXPORT
     public function export(Request $request)
     {
         $filters = $request->only([
@@ -77,9 +70,10 @@ class EmployeeController extends Controller
         );
     }
 
+    // ✅ STORE (matricule auto-generated)
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'first_name'     => 'required|string|max:255',
             'last_name'      => 'required|string|max:255',
             'sex'            => 'required|in:M,F',
@@ -99,14 +93,16 @@ class EmployeeController extends Controller
             'date_recruited' => 'required|date',
         ]);
 
-        Employee::create($request->all());
+        // 👇 matricule is auto-generated in model
+        Employee::create($validated);
 
         return back()->with('success', 'Employé ajouté avec succès.');
     }
 
+    // ✅ UPDATE
     public function update(Request $request, Employee $employee)
     {
-        $request->validate([
+        $validated = $request->validate([
             'first_name'     => 'required|string|max:255',
             'last_name'      => 'required|string|max:255',
             'sex'            => 'required|in:M,F',
@@ -117,11 +113,13 @@ class EmployeeController extends Controller
             'nin'            => 'required|string|max:50|unique:employees,nin,' . $employee->id,
         ]);
 
-        $employee->update($request->all());
+        // 👇 Do NOT allow matricule update
+        $employee->update($validated);
 
         return back()->with('success', 'Employé mis à jour avec succès.');
     }
 
+    // ✅ DELETE
     public function destroy(Employee $employee)
     {
         $employee->delete();

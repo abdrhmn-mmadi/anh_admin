@@ -86,6 +86,7 @@
             <thead class="bg-gray-50">
             <tr>
                 <th class="px-6 py-3">#</th>
+                <th class="px-6 py-3">Matricule</th> {{-- ✅ added --}}
                 <th class="px-6 py-3">Nom</th>
                 <th class="px-6 py-3">Sexe</th>
                 <th class="px-6 py-3">Poste</th>
@@ -100,6 +101,12 @@
             @forelse($employees as $employee)
                 <tr>
                     <td class="px-6 py-4">{{ $employee->id }}</td>
+
+                    {{-- ✅ show matricule --}}
+                    <td class="px-6 py-4 font-semibold text-blue-600">
+                        {{ $employee->matricule }}
+                    </td>
+
                     <td class="px-6 py-4">{{ $employee->first_name }} {{ $employee->last_name }}</td>
                     <td class="px-6 py-4">{{ $employee->sex }}</td>
                     <td class="px-6 py-4">{{ $employee->position }}</td>
@@ -127,7 +134,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="text-center py-6 text-gray-500">
+                    <td colspan="9" class="text-center py-6 text-gray-500">
                         Aucun employé trouvé.
                     </td>
                 </tr>
@@ -138,7 +145,6 @@
         {{-- ================= TABLE FOOTER ================= --}}
         <div class="flex flex-col md:flex-row items-center justify-between p-4 border-t gap-4">
 
-            {{-- PER PAGE SELECT --}}
             <form method="GET" action="{{ route('admin.employees.index') }}">
                 @foreach(request()->except('per_page','page') as $key => $value)
                     <input type="hidden" name="{{ $key }}" value="{{ $value }}">
@@ -150,15 +156,14 @@
                             onchange="this.form.submit()"
                             class="border border-gray-300 rounded p-1 text-sm">
                         <option value="20" @selected(request('per_page',20)==20)>20</option>
-                        <option value="50" @selected(request('per_page')==50)>50</option>
-                        <option value="100" @selected(request('per_page')==100)>100</option>
-                        <option value="200" @selected(request('per_page')==200)>200</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
                     </select>
                     <span class="text-sm text-gray-600">entrées</span>
                 </div>
             </form>
 
-            {{-- PAGINATION --}}
             <div>
                 {{ $employees->withQueryString()->links() }}
             </div>
@@ -171,6 +176,7 @@
          x-transition
          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-6 w-[900px] max-h-screen overflow-y-auto">
+
             <h2 class="text-xl font-bold mb-4"
                 x-text="isEdit ? 'Modifier l\'Employé' : 'Ajouter un Employé'"></h2>
 
@@ -191,7 +197,9 @@
                     <option value="F">Féminin</option>
                 </select>
 
-                <input name="nin" x-model="form.nin" placeholder="Matricule" class="border rounded p-2" required>
+                {{-- ✅ FIXED (was wrong before) --}}
+                <input name="nin" x-model="form.nin" placeholder="NIN" class="border rounded p-2" required>
+
                 <input type="date" name="dob" x-model="form.dob" class="border rounded p-2" required>
 
                 <input name="address" x-model="form.address" placeholder="Adresse" class="border rounded p-2" required>
